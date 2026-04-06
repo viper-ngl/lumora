@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Team — Nova Moderation</title>
+<link rel="stylesheet" href="/nova-shared.css">
+<style>
+.dept-section{margin-bottom:48px;}
+.dept-header{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+.dept-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.dept-title{font-family:'Space Grotesk',sans-serif;font-size:1.2rem;font-weight:700;}
+.dept-desc{font-size:13px;color:var(--text2);margin-left:auto;}
+.team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;}
+.member-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px;text-align:center;transition:all .2s;}
+.member-card:hover{border-color:var(--border2);transform:translateY(-3px);}
+.member-av{width:60px;height:60px;border-radius:50%;margin:0 auto 12px;object-fit:cover;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.3rem;}
+.member-name{font-weight:700;font-size:.95rem;margin-bottom:4px;}
+.member-role{font-size:12px;margin-bottom:8px;}
+.perm-tag{display:inline-block;background:var(--bg3);border:1px solid var(--border);border-radius:100px;padding:2px 8px;font-size:10px;color:var(--text3);margin:1px;}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <a class="topnav-logo" href="/">Nova<span>.</span></a>
+  <div class="topnav-links"><a href="/">Home</a><a href="/updates">Updates</a><a href="/apply">Apply</a></div>
+  <div class="topnav-actions" id="navAuth">
+    <a class="btn btn-ghost btn-sm" href="/login">Log in</a>
+  </div>
+</nav>
+<div class="section-wrap" style="padding-top:100px">
+  <h1 class="page-title">Our Team</h1>
+  <p class="page-subtitle">Meet the people behind Nova Moderation.</p>
+  <div id="content"><div class="loading-state"><div class="spinner"></div><p>Loading team…</p></div></div>
+</div>
+<footer class="site-footer">
+  <div class="footer-brand">Nova<span>.</span></div>
+  <div class="footer-links"><a href="/">Home</a><a href="/apply">Apply</a><a href="/policy">Policy</a></div>
+  <div class="footer-copy">Powered by Lumora Services</div>
+</footer>
+<script>
+fetch('/api/me').then(r=>r.json()).then(u=>{if(u?.id)document.getElementById('navAuth').innerHTML=`<a class="btn btn-primary btn-sm" href="/dashboard">Dashboard</a>`;}).catch(()=>{});
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function load(){
+  const el = document.getElementById('content');
+  // Try the new staff/departments system first
+  const staffData = await fetch('/api/staff/public').then(r=>r.json()).catch(()=>null);
+  // Fall back to old team_members if no staff
+  const oldTeam = await fetch('/api/team').then(r=>r.json()).catch(()=>[]);
+
+  const hasDepts = staffData && (staffData.departments?.length || staffData.unassigned?.length);
+  const hasOldTeam = oldTeam.length > 0;
+
+  if (!hasDepts && !hasOldTeam) {
+    el.innerHTML='<div style="text-align:center;padding:60px;color:var(--text2)"><div style="font-size:2rem;margin-bottom:12px">👥</div><p>Team info will appear here soon.</p></div>';
+    return;
+  }
+
+  let html = '';
+
+  if (hasDepts) {
+    // Show by department
+    for (const dept of (staffData.departments||[])) {
+      if (!dept.members.length) continue;
+      html += `<div class="dept-section">
+        <div class="dept-header">
+          <div class="dept-dot" style="background:${dept.color||'#6c63ff'}"></div>
+          <div class="dept-title">${esc(dept.name)}</div>
+          ${dept.description?`<div class="dept-desc">${esc(dept.description)}</div>`:''}
+        </div>
+        <div class="team-grid">${dept.members.map(m=>memberCard(m, dept.color)).join('')}</div>
+      </div>`;
+    }
+    if (staffData.unassigned?.length) {
+      html += `<div class="dept-section">
+        <div class="dept-header"><div class="dept-dot" style="background:var(--text3)"></div><div class="dept-title" style="color:var(--text2)">General Staff</div></div>
+        <div class="team-grid">${staffData.unassigned.map(m=>memberCard(m,'#6c63ff')).join('')}</div>
+      </div>`;
+    }
+  } else if (hasOldTeam) {
+    // Fallback to old team_members
+    html = `<div class="team-grid">${oldTeam.map(m=>`
+      <div class="member-card">
+        <div class="member-av" style="background:rgba(124,111,255,.12);color:#a78bfa">${m.name.charAt(0).toUpperCase()}</div>
+        <div class="member-name">${esc(m.name)}</div>
+        <div class="member-role" style="color:#a78bfa">${esc(m.role||'Team Member')}</div>
+        ${m.bio?`<div style="font-size:12px;color:var(--text2);line-height:1.5;margin-top:6px">${esc(m.bio)}</div>`:''}
+      </div>`).join('')}</div>`;
+  }
+
+  el.innerHTML = html || '<div style="text-align:center;padding:60px;color:var(--text2)">No team members yet.</div>';
+}
+
+function memberCard(m, deptColor) {
+  const av = m.avatar
+    ? `<img class="member-av" src="https://cdn.discordapp.com/avatars/${m.discord_id}/${m.avatar}.png?size=64" alt="">`
+    : `<div class="member-av" style="background:rgba(124,111,255,.12);color:${deptColor||'#a78bfa'}">${(m.username||'?').charAt(0).toUpperCase()}</div>`;
+  return `<div class="member-card">
+    ${av}
+    <div class="member-name">${esc(m.username)}</div>
+    <div class="member-role" style="color:${deptColor||'var(--accent2)'}">${esc(m.role_title||'Staff')}</div>
+  </div>`;
+}
+
+load();
+</script>
+</body>
+</html>

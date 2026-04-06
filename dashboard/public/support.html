@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Support — Nova Moderation</title>
+<link rel="stylesheet" href="/nova-shared.css">
+<style>
+.ticket-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:12px;display:flex;align-items:flex-start;gap:16px;transition:all .2s;cursor:pointer;}
+.ticket-card:hover{border-color:var(--border2);}
+.ticket-info{flex:1;min-width:0;}
+.ticket-subject{font-weight:600;font-size:15px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ticket-meta{font-size:12px;color:var(--text2);}
+.prio-high{color:var(--red);}
+.prio-normal{color:var(--text2);}
+.prio-low{color:var(--green);}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <a class="topnav-logo" href="/">Nova<span>.</span></a>
+  <div class="topnav-links"><a href="/">Home</a><a href="/updates">Updates</a><a href="/apply">Apply</a></div>
+  <div class="topnav-actions" id="navAuth"><a class="btn btn-ghost btn-sm" href="/login">Log in</a></div>
+</nav>
+<div class="section-wrap narrow" style="padding-top:100px">
+  <h1 class="page-title">Support</h1>
+  <p class="page-subtitle">Need help? Submit a ticket and our team will get back to you.</p>
+
+  <div id="loginRequired" style="display:none;background:var(--accent-dim);border:1px solid rgba(124,111,255,.25);border-radius:var(--radius-lg);padding:24px;text-align:center;margin-bottom:24px">
+    <div style="font-size:1.5rem;margin-bottom:10px">🔐</div>
+    <h3 style="margin-bottom:8px">Sign in to open a ticket</h3>
+    <p style="color:var(--text2);font-size:14px;margin-bottom:18px">You need an account to submit support tickets so we can track your requests.</p>
+    <a class="btn btn-primary" href="/login">Sign in</a>
+    <a class="btn btn-ghost" href="/login?tab=register" style="margin-left:10px">Create account</a>
+  </div>
+
+  <div id="ticketForm" style="display:none">
+    <div class="card" style="margin-bottom:24px">
+      <h2 style="font-size:1rem;margin-bottom:16px">Open New Ticket</h2>
+      <div class="form-group"><label>Subject</label><input id="subject" placeholder="Briefly describe your issue"></div>
+      <div class="form-grid">
+        <div class="form-group"><label>Priority</label>
+          <select id="priority">
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Message</label><textarea id="message" placeholder="Describe your issue in detail…" style="min-height:100px"></textarea></div>
+      <button class="btn btn-primary" onclick="submitTicket()">Submit Ticket</button>
+    </div>
+    <h2 style="font-size:1rem;margin-bottom:16px">Your Tickets</h2>
+    <div id="myTickets"><div class="loading-state"><div class="spinner"></div></div></div>
+  </div>
+</div>
+<footer class="site-footer">
+  <div class="footer-brand">Nova<span>.</span></div>
+  <div class="footer-links"><a href="/">Home</a><a href="/apply">Apply</a><a href="/policy">Policy</a></div>
+  <div class="footer-copy">Powered by Lumora Services</div>
+</footer>
+<div class="toast" id="toast"></div>
+<script>
+function toast(msg,ok=true){const t=document.getElementById('toast');t.textContent=(ok?'✅ ':'❌ ')+msg;t.className='toast show '+(ok?'success':'error');setTimeout(()=>t.classList.remove('show'),3500);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function init(){
+  const me=await fetch('/api/me').then(r=>r.json()).catch(()=>null);
+  if(me?.id){
+    document.getElementById('navAuth').innerHTML=`<a class="btn btn-primary btn-sm" href="/dashboard">Dashboard</a>`;
+    document.getElementById('ticketForm').style.display='block';
+    loadTickets();
+  } else {
+    document.getElementById('loginRequired').style.display='block';
+  }
+}
+
+async function loadTickets(){
+  const tickets=await fetch('/api/tickets').then(r=>r.json()).catch(()=>[]);
+  const el=document.getElementById('myTickets');
+  if(!tickets.length){el.innerHTML='<p style="color:var(--text2);text-align:center;padding:24px">No tickets yet.</p>';return;}
+  el.innerHTML=tickets.map(t=>`
+    <div class="ticket-card" onclick="location.href='/tickets/${t.id}'">
+      <div style="flex:1;min-width:0">
+        <div class="ticket-subject">${esc(t.subject)}</div>
+        <div class="ticket-meta">
+          <span class="badge badge-${t.status}" style="margin-right:8px">${t.status}</span>
+          <span class="prio-${t.priority}">${t.priority}</span>
+          · Opened ${new Date(t.created_at*1000).toLocaleDateString()}
+        </div>
+      </div>
+      <span style="font-size:18px;color:var(--text3)">›</span>
+    </div>`).join('');
+}
+
+async function submitTicket(){
+  const subject=document.getElementById('subject').value.trim();
+  const message=document.getElementById('message').value.trim();
+  const priority=document.getElementById('priority').value;
+  if(!subject||!message){toast('Subject and message are required.',false);return;}
+  const r=await fetch('/api/tickets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject,message,priority})});
+  const d=await r.json();
+  if(r.ok){toast('Ticket submitted!');document.getElementById('subject').value='';document.getElementById('message').value='';loadTickets();}
+  else toast(d.error||'Failed.',false);
+}
+init();
+</script>
+</body>
+</html>

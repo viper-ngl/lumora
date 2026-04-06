@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Account — Nova</title>
+<link rel="stylesheet" href="/nova-shared.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">Nova<span>.</span></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">General</div>
+      <a class="nav-item" href="/dashboard"><span class="icon">🏠</span> My Servers</a>
+      <a class="nav-item active" href="/account"><span class="icon">👤</span> Account</a>
+      <div class="nav-section">Nova</div>
+      <a class="nav-item" href="/updates"><span class="icon">📋</span> Updates</a>
+      <a class="nav-item" href="/apply"><span class="icon">📝</span> Apply</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-chip"><img class="user-avatar" id="uav" src="" alt=""><div><div class="user-name" id="uname">…</div></div></div>
+      <a class="logout-btn" href="/auth/logout">← Log out</a>
+    </div>
+  </aside>
+  <main class="main-content">
+    <div class="page-header"><h1>Account Settings</h1><p>Manage your Nova account, email, and password.</p></div>
+
+    <div style="max-width:560px;display:flex;flex-direction:column;gap:18px">
+
+      <!-- Profile -->
+      <div class="card">
+        <h2 style="font-size:1rem;margin-bottom:18px">Profile</h2>
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)">
+          <img id="profileAv" src="" style="width:56px;height:56px;border-radius:50%;background:var(--bg3);object-fit:cover">
+          <div>
+            <div id="profileName" style="font-weight:600;font-size:16px"></div>
+            <div id="profileDiscord" style="font-size:13px;color:var(--text2);margin-top:2px"></div>
+          </div>
+        </div>
+        <div class="form-group"><label>Display Name</label><input type="text" id="username" placeholder="Your name"></div>
+        <div class="form-group"><label>Email Address</label><input type="email" id="email" placeholder="you@example.com"><div class="hint">Used for email/password login. Optional if you use Discord.</div></div>
+        <button class="btn btn-primary" onclick="saveProfile()">Save Profile</button>
+      </div>
+
+      <!-- Password -->
+      <div class="card">
+        <h2 style="font-size:1rem;margin-bottom:6px">Password</h2>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:18px">Set or change your password for email login. You can also always log in with Discord.</p>
+        <div class="form-group"><label>Current Password</label><input type="password" id="curPass" placeholder="Leave blank if no password set"></div>
+        <div class="form-group"><label>New Password</label><input type="password" id="newPass" placeholder="8+ characters"></div>
+        <div class="form-group"><label>Confirm New Password</label><input type="password" id="confPass" placeholder="Repeat new password"></div>
+        <button class="btn btn-primary" onclick="savePassword()">Update Password</button>
+      </div>
+
+      <!-- Discord link -->
+      <div class="card">
+        <h2 style="font-size:1rem;margin-bottom:8px">Discord Account</h2>
+        <div id="discordStatus"></div>
+      </div>
+
+    </div>
+    <footer style="margin-top:56px;padding-top:20px;border-top:1px solid var(--border);color:var(--text3);font-size:12px;text-align:center">Powered by Lumora Services</footer>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+let ME = null;
+function toast(msg,ok=true){const t=document.getElementById('toast');t.textContent=(ok?'✅ ':'❌ ')+msg;t.className='toast show '+(ok?'success':'error');setTimeout(()=>t.classList.remove('show'),3500);}
+
+async function init(){
+  ME=await fetch('/api/me').then(r=>r.json()).catch(()=>null);
+  if(!ME){location='/login';return;}
+  const av=ME.avatar?`https://cdn.discordapp.com/avatars/${ME.discord_id}/${ME.avatar}.png?size=64`:`https://cdn.discordapp.com/embed/avatars/0.png`;
+  document.getElementById('uav').src=av;
+  document.getElementById('uname').textContent=ME.username;
+  document.getElementById('profileAv').src=av;
+  document.getElementById('profileName').textContent=ME.username;
+  document.getElementById('username').value=ME.username||'';
+  document.getElementById('email').value=ME.email||'';
+  document.getElementById('profileDiscord').textContent=ME.discord_id?`Discord connected: ${ME.username}`:'No Discord linked';
+  document.getElementById('discordStatus').innerHTML=ME.discord_id
+    ? `<div style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--green)">✅ Discord connected — ${ME.username}<br><span style="color:var(--text2);font-size:12px">ID: ${ME.discord_id}</span></div>`
+    : `<p style="font-size:14px;color:var(--text2);margin-bottom:14px">No Discord account linked. Link Discord to manage servers and use Discord login.</p><a class="btn btn-ghost" href="/auth/discord">Link Discord Account</a>`;
+}
+
+async function saveProfile(){
+  const r=await fetch('/api/account',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:document.getElementById('username').value,email:document.getElementById('email').value})});
+  const d=await r.json();
+  if(r.ok){toast('Profile saved!');document.getElementById('uname').textContent=document.getElementById('username').value;}
+  else toast(d.error||'Save failed.',false);
+}
+
+async function savePassword(){
+  const np=document.getElementById('newPass').value;
+  const cp=document.getElementById('confPass').value;
+  if(np!==cp){toast('Passwords do not match.',false);return;}
+  const r=await fetch('/api/account',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({current_password:document.getElementById('curPass').value,new_password:np})});
+  const d=await r.json();
+  if(r.ok){toast('Password updated!');document.getElementById('curPass').value='';document.getElementById('newPass').value='';document.getElementById('confPass').value='';}
+  else toast(d.error||'Update failed.',false);
+}
+
+init();
+</script>
+</body>
+</html>

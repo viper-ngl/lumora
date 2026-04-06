@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Organization — Nova</title>
+<link rel="stylesheet" href="/nova-shared.css">
+<style>
+.tab-bar{display:flex;gap:3px;border-bottom:1px solid var(--border);margin-bottom:24px;}
+.tab-btn{padding:9px 16px;font-size:13px;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:'Inter',sans-serif;}
+.tab-btn:hover{color:var(--text);}.tab-btn.active{color:var(--accent2);border-bottom-color:var(--accent);}
+.panel{display:none;}.panel.active{display:block;}
+.dept-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.dept-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.dept-info{flex:1;}
+.dept-name{font-weight:600;font-size:15px;}
+.dept-desc{font-size:12px;color:var(--text2);margin-top:2px;}
+.dept-count{font-size:12px;color:var(--text2);margin-top:3px;}
+.dept-actions{display:flex;gap:6px;flex-shrink:0;}
+.staff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;}
+.staff-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+.staff-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.staff-av{width:40px;height:40px;border-radius:50%;background:var(--accent-dim);object-fit:cover;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;color:var(--accent2);flex-shrink:0;}
+.staff-name{font-weight:600;font-size:14px;}
+.staff-role{font-size:12px;color:var(--accent2);margin-top:1px;}
+.staff-dept{font-size:11px;color:var(--text2);margin-top:3px;}
+.perm-tag{display:inline-block;background:var(--bg2);border:1px solid var(--border);border-radius:100px;padding:2px 9px;font-size:11px;color:var(--text2);margin:2px 2px 0 0;}
+.del-btn{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 8px;border-radius:6px;transition:all .15s;font-size:13px;}.del-btn:hover{background:var(--red-dim);color:var(--red);}
+.edit-btn{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 8px;border-radius:6px;transition:all .15s;font-size:13px;}.edit-btn:hover{background:var(--accent-dim);color:var(--accent2);}
+.owner-badge{background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);color:var(--yellow);padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;margin-left:8px;}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:center;justify-content:center;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-xl);padding:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;}
+.modal h2{font-size:1.1rem;margin-bottom:20px;}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+.perm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.perm-check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;cursor:pointer;}
+.perm-check input{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;}
+.perm-check.checked{border-color:rgba(124,111,255,.4);color:var(--text);}
+.color-picker{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.color-opt{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:border-color .15s;}
+.color-opt.selected{border-color:var(--text);}
+.section-divider{display:flex;align-items:center;gap:12px;margin:20px 0 16px;color:var(--text2);font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;}
+.section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">Nova<span>.</span></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="/dashboard"><span class="icon">🏠</span> Dashboard</a>
+      <div class="nav-section">Staff</div>
+      <a class="nav-item" href="/admin"><span class="icon">🛡️</span> Staff Panel</a>
+      <a class="nav-item active" href="/org"><span class="icon">🏢</span> Organization</a>
+      <a class="nav-item" href="/network"><span class="icon">🌐</span> Network Mgmt</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-chip"><img class="user-avatar" id="uav" src="" alt=""><div><div class="user-name" id="uname">…</div><div class="user-role" id="urole"></div></div></div>
+      <a class="logout-btn" href="/auth/logout">← Log out</a>
+    </div>
+  </aside>
+  <main class="main-content">
+    <div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:var(--radius);padding:12px 16px;margin-bottom:24px;font-size:13px;color:var(--yellow)">
+      🏢 <strong>Organization Management</strong> — <span id="ownerNotice">Checking permissions…</span>
+    </div>
+    <div class="page-header"><h1>Organization</h1><p>Manage departments, staff members, and permissions across Nova.</p></div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="depts" onclick="st('depts')">🏢 Departments</button>
+      <button class="tab-btn" data-tab="staff" onclick="st('staff')">👥 Staff Members</button>
+    </div>
+
+    <!-- DEPARTMENTS -->
+    <div class="panel active" id="pnl-depts">
+      <div class="card" style="margin-bottom:16px" id="deptCreateCard">
+        <h2 style="font-size:1rem;margin-bottom:16px">Create Department</h2>
+        <div class="form-grid">
+          <div class="form-group"><label>Department Name</label><input id="deptName" placeholder="e.g. Moderation, Development"></div>
+          <div class="form-group"><label>Description</label><input id="deptDesc" placeholder="What this department does"></div>
+        </div>
+        <div class="form-group">
+          <label>Color</label>
+          <div class="color-picker" id="colorPicker"></div>
+          <input type="hidden" id="deptColor" value="#6c63ff">
+        </div>
+        <button class="btn btn-primary" style="margin-top:8px" onclick="createDept()">Create Department</button>
+      </div>
+      <div class="card">
+        <h2 style="font-size:1rem;margin-bottom:16px">All Departments</h2>
+        <div id="deptList"><div class="loading-state"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- STAFF -->
+    <div class="panel" id="pnl-staff">
+      <div class="card" style="margin-bottom:16px" id="staffCreateCard">
+        <h2 style="font-size:1rem;margin-bottom:16px">Add Staff Member</h2>
+        <div class="form-grid">
+          <div class="form-group"><label>Discord User ID</label><input id="staffDiscordId" placeholder="17-20 digit ID"></div>
+          <div class="form-group"><label>Username</label><input id="staffUsername" placeholder="Their Discord username"></div>
+          <div class="form-group"><label>Role Title</label><input id="staffRole" placeholder="e.g. Senior Moderator"></div>
+          <div class="form-group"><label>Department</label><select id="staffDept"><option value="">No department</option></select></div>
+        </div>
+        <div class="form-group">
+          <label>Permissions</label>
+          <div class="perm-grid" id="permGrid"></div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:12px" onclick="addStaff()">Add Staff Member</button>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h2 style="font-size:1rem">All Staff Members</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:12px;color:var(--text2)">Filter:</label>
+            <select id="deptFilter" onchange="renderStaff()" style="font-size:13px;padding:6px 10px;width:auto">
+              <option value="">All departments</option>
+            </select>
+          </div>
+        </div>
+        <div id="staffList"><div class="loading-state"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+    <footer style="margin-top:56px;padding-top:20px;border-top:1px solid var(--border);color:var(--text3);font-size:12px;text-align:center">Powered by Lumora Services</footer>
+  </main>
+</div>
+
+<!-- Edit Department Modal -->
+<div class="modal-bg" id="editDeptModal">
+  <div class="modal">
+    <h2>Edit Department</h2>
+    <input type="hidden" id="editDeptId">
+    <div class="form-group"><label>Name</label><input id="editDeptName" placeholder="Department name"></div>
+    <div class="form-group"><label>Description</label><input id="editDeptDesc" placeholder="Description"></div>
+    <div class="form-group">
+      <label>Color</label>
+      <div class="color-picker" id="editColorPicker"></div>
+      <input type="hidden" id="editDeptColor">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('editDeptModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDept()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Staff Modal -->
+<div class="modal-bg" id="editStaffModal">
+  <div class="modal">
+    <h2>Edit Staff Member</h2>
+    <input type="hidden" id="editStaffId">
+    <div class="form-grid">
+      <div class="form-group"><label>Username</label><input id="editStaffUsername" placeholder="Username"></div>
+      <div class="form-group"><label>Role Title</label><input id="editStaffRole" placeholder="Role title"></div>
+      <div class="form-group"><label>Department</label><select id="editStaffDept"><option value="">No department</option></select></div>
+    </div>
+    <div class="form-group">
+      <label>Permissions</label>
+      <div class="perm-grid" id="editPermGrid"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('editStaffModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStaff()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+const DEPT_COLORS = ['#6c63ff','#3dd68c','#f04f77','#fbbf24','#60a5fa','#a78bfa','#34d399','#fb7185','#fb923c','#a3e635'];
+const PERMISSIONS = [
+  { key: 'manage_servers',   label: 'Manage Servers' },
+  { key: 'manage_users',     label: 'Manage Users' },
+  { key: 'view_cases',       label: 'View Cases' },
+  { key: 'manage_cases',     label: 'Manage Cases' },
+  { key: 'manage_blacklist', label: 'Manage Blacklist' },
+  { key: 'post_updates',     label: 'Post Updates' },
+  { key: 'manage_apps',      label: 'Manage Applications' },
+  { key: 'manage_team',      label: 'Manage Team Page' },
+];
+
+let ME = null;
+let DEPTS = [];
+let STAFF = [];
+let IS_OWNER = false;
+
+function toast(msg, ok=true){ const t=document.getElementById('toast'); t.textContent=(ok?'✅ ':'❌ ')+msg; t.className='toast show '+(ok?'success':'error'); setTimeout(()=>t.classList.remove('show'),3500); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function st(n){ document.querySelectorAll('.tab-btn').forEach(t=>t.classList.toggle('active',t.dataset.tab===n)); document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='pnl-'+n)); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+
+function buildColorPicker(containerId, inputId, selected) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = DEPT_COLORS.map(c => `<div class="color-opt${c===selected?' selected':''}" style="background:${c}" data-color="${c}" onclick="pickColor('${containerId}','${inputId}','${c}')"></div>`).join('');
+  document.getElementById(inputId).value = selected || DEPT_COLORS[0];
+}
+
+function pickColor(containerId, inputId, color) {
+  document.querySelectorAll(`#${containerId} .color-opt`).forEach(d => d.classList.toggle('selected', d.dataset.color===color));
+  document.getElementById(inputId).value = color;
+}
+
+function buildPermGrid(containerId, selected=[]) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = PERMISSIONS.map(p => `
+    <label class="perm-check${selected.includes(p.key)?' checked':''}">
+      <input type="checkbox" value="${p.key}" ${selected.includes(p.key)?'checked':''} onchange="this.closest('.perm-check').classList.toggle('checked',this.checked)">
+      ${p.label}
+    </label>`).join('');
+}
+
+function getSelectedPerms(gridId) {
+  return [...document.querySelectorAll(`#${gridId} input:checked`)].map(i=>i.value);
+}
+
+async function init() {
+  ME = await fetch('/api/me').then(r=>r.json()).catch(()=>null);
+  if (!ME?.isAdmin) { location.href='/dashboard'; return; }
+
+  const av = ME.avatar && ME.discord_id
+    ? `https://cdn.discordapp.com/avatars/${ME.discord_id}/${ME.avatar}.png?size=64`
+    : `https://cdn.discordapp.com/embed/avatars/0.png`;
+  document.getElementById('uav').src = av;
+  document.getElementById('uname').textContent = ME.username;
+  document.getElementById('urole').textContent = 'Nova Staff';
+
+  // Check if owner
+  const ownerNotice = document.getElementById('ownerNotice');
+  IS_OWNER = await fetch('/api/departments').then(async r => {
+    // Try an owner-only action to detect if user is owner
+    const testR = await fetch('/api/departments', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({name:'__test__'}) });
+    if (testR.status === 403) return false;
+    // Undo if it was created
+    const d = await testR.json();
+    if (d.id) await fetch(`/api/departments/${d.id}`, {method:'DELETE'});
+    return true;
+  }).catch(() => false);
+
+  // Better owner check: compare discord ID
+  const adminIds = []; // we don't expose this directly
+  // Use a dedicated endpoint instead
+  const ownerCheck = await fetch('/api/staff/public').then(r=>r.json()).catch(()=>null);
+  // Owner detection via ME.discord_id being the first admin
+  // We'll just allow all admins to see the page, but restrict create/edit/delete in UI
+  IS_OWNER = true; // server enforces owner-only, UI just shows all controls for admins
+
+  ownerNotice.textContent = 'You have access to view and manage organization structure.';
+
+  buildColorPicker('colorPicker', 'deptColor', DEPT_COLORS[0]);
+  buildPermGrid('permGrid', []);
+
+  await loadAll();
+}
+
+async function loadAll() {
+  await loadDepts();
+  await loadStaff();
+}
+
+async function loadDepts() {
+  const r = await fetch('/api/departments');
+  if (!r.ok) { document.getElementById('deptList').innerHTML='<p style="color:var(--text2);text-align:center;padding:24px">Failed to load departments.</p>'; return; }
+  DEPTS = await r.json();
+
+  // Update dept selects
+  const opts = `<option value="">No department</option>` + DEPTS.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('');
+  document.getElementById('staffDept').innerHTML = opts;
+  document.getElementById('editStaffDept').innerHTML = opts;
+  const filter = document.getElementById('deptFilter');
+  filter.innerHTML = `<option value="">All departments</option>` + DEPTS.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('');
+
+  const el = document.getElementById('deptList');
+  if (!DEPTS.length) { el.innerHTML='<p style="color:var(--text2);text-align:center;padding:24px">No departments yet. Create one above.</p>'; return; }
+
+  el.innerHTML = DEPTS.map(d => {
+    const memberCount = STAFF.filter(s=>s.department_id===d.id||s.department?.id===d.id).length;
+    return `<div class="dept-card">
+      <div class="dept-dot" style="background:${d.color||'#6c63ff'}"></div>
+      <div class="dept-info">
+        <div class="dept-name">${esc(d.name)}</div>
+        ${d.description?`<div class="dept-desc">${esc(d.description)}</div>`:''}
+        <div class="dept-count">${memberCount} member${memberCount!==1?'s':''}</div>
+      </div>
+      <div class="dept-actions">
+        <button class="edit-btn" onclick="openEditDept('${d.id}')" title="Edit">✏️</button>
+        <button class="del-btn" onclick="deleteDept('${d.id}')" title="Delete">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadStaff() {
+  const r = await fetch('/api/staff');
+  if (!r.ok) { document.getElementById('staffList').innerHTML='<p style="color:var(--text2);text-align:center;padding:24px">Failed to load staff.</p>'; return; }
+  STAFF = await r.json();
+  renderStaff();
+  // Reload depts to update counts
+  if (DEPTS.length) await loadDepts();
+}
+
+function renderStaff() {
+  const filter = document.getElementById('deptFilter').value;
+  let list = filter ? STAFF.filter(s=>s.department?.id===filter||s.department_id===filter) : STAFF;
+  const el = document.getElementById('staffList');
+  if (!list.length) { el.innerHTML='<p style="color:var(--text2);text-align:center;padding:24px">'+(filter?'No staff in this department.':'No staff members yet.')+'</p>'; return; }
+
+  el.innerHTML = `<div class="staff-grid">${list.map(m => {
+    const initials = (m.username||'?').charAt(0).toUpperCase();
+    const deptColor = m.department?.color || '#6c63ff';
+    const av = m.avatar ? `<img class="staff-av" src="https://cdn.discordapp.com/avatars/${m.discord_id}/${m.avatar}.png?size=64" alt="">` : `<div class="staff-av">${initials}</div>`;
+    return `<div class="staff-card">
+      <div class="staff-header">
+        ${av}
+        <div>
+          <div class="staff-name">${esc(m.username)}</div>
+          <div class="staff-role">${esc(m.role_title||'Staff')}</div>
+          ${m.department?`<div class="staff-dept" style="color:${deptColor}">● ${esc(m.department.name)}</div>`:'<div class="staff-dept">No department</div>'}
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);font-family:monospace;margin-bottom:8px">${m.discord_id}</div>
+      ${(m.permissions||[]).length?`<div>${(m.permissions||[]).map(p=>`<span class="perm-tag">${p.replace(/_/g,' ')}</span>`).join('')}</div>`:'<div style="font-size:12px;color:var(--text3)">No permissions</div>'}
+      <div style="display:flex;gap:6px;margin-top:12px">
+        <button class="btn btn-ghost btn-sm" onclick="openEditStaff('${m.id}')">Edit</button>
+        <button class="del-btn" onclick="deleteStaff('${m.id}','${esc(m.username)}')" title="Remove">🗑</button>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+async function createDept() {
+  const name = document.getElementById('deptName').value.trim();
+  const desc = document.getElementById('deptDesc').value.trim();
+  const color = document.getElementById('deptColor').value;
+  if (!name) { toast('Department name required.', false); return; }
+  const r = await fetch('/api/departments', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name,description:desc,color}) });
+  const d = await r.json();
+  if (r.ok) { toast('Department created!'); document.getElementById('deptName').value=''; document.getElementById('deptDesc').value=''; await loadDepts(); }
+  else toast(d.error||'Failed.', false);
+}
+
+function openEditDept(id) {
+  const dept = DEPTS.find(d=>d.id===id);
+  if (!dept) return;
+  document.getElementById('editDeptId').value = dept.id;
+  document.getElementById('editDeptName').value = dept.name;
+  document.getElementById('editDeptDesc').value = dept.description||'';
+  buildColorPicker('editColorPicker','editDeptColor', dept.color||DEPT_COLORS[0]);
+  document.getElementById('editDeptModal').classList.add('show');
+}
+
+async function saveDept() {
+  const id = document.getElementById('editDeptId').value;
+  const name = document.getElementById('editDeptName').value.trim();
+  const desc = document.getElementById('editDeptDesc').value.trim();
+  const color = document.getElementById('editDeptColor').value;
+  if (!name) { toast('Name required.', false); return; }
+  const r = await fetch(`/api/departments/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name,description:desc,color}) });
+  const d = await r.json();
+  if (r.ok) { toast('Department updated!'); closeModal('editDeptModal'); await loadDepts(); }
+  else toast(d.error||'Failed.', false);
+}
+
+async function deleteDept(id) {
+  const dept = DEPTS.find(d=>d.id===id);
+  if (!confirm(`Delete department "${dept?.name}"? Staff in this department will be unassigned.`)) return;
+  const r = await fetch(`/api/departments/${id}`, {method:'DELETE'});
+  if (r.ok) { toast('Department deleted.'); await loadAll(); }
+  else { const d=await r.json(); toast(d.error||'Failed.', false); }
+}
+
+async function addStaff() {
+  const discord_id = document.getElementById('staffDiscordId').value.trim();
+  const username   = document.getElementById('staffUsername').value.trim();
+  const role_title = document.getElementById('staffRole').value.trim();
+  const department_id = document.getElementById('staffDept').value||null;
+  const permissions = getSelectedPerms('permGrid');
+  if (!discord_id || !username) { toast('Discord ID and username required.', false); return; }
+  if (!/^\d{17,20}$/.test(discord_id)) { toast('Invalid Discord ID (17-20 digits).', false); return; }
+  const r = await fetch('/api/staff', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({discord_id,username,role_title,department_id,permissions}) });
+  const d = await r.json();
+  if (r.ok) {
+    toast(`${username} added to staff!`);
+    document.getElementById('staffDiscordId').value='';
+    document.getElementById('staffUsername').value='';
+    document.getElementById('staffRole').value='';
+    document.getElementById('staffDept').value='';
+    buildPermGrid('permGrid',[]);
+    await loadStaff();
+  } else toast(d.error||'Failed.', false);
+}
+
+function openEditStaff(id) {
+  const m = STAFF.find(s=>s.id===id);
+  if (!m) return;
+  document.getElementById('editStaffId').value = m.id;
+  document.getElementById('editStaffUsername').value = m.username||'';
+  document.getElementById('editStaffRole').value = m.role_title||'';
+  document.getElementById('editStaffDept').value = m.department?.id||m.department_id||'';
+  buildPermGrid('editPermGrid', m.permissions||[]);
+  document.getElementById('editStaffModal').classList.add('show');
+}
+
+async function saveStaff() {
+  const id = document.getElementById('editStaffId').value;
+  const username = document.getElementById('editStaffUsername').value.trim();
+  const role_title = document.getElementById('editStaffRole').value.trim();
+  const department_id = document.getElementById('editStaffDept').value||null;
+  const permissions = getSelectedPerms('editPermGrid');
+  const r = await fetch(`/api/staff/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username,role_title,department_id,permissions}) });
+  const d = await r.json();
+  if (r.ok) { toast('Staff member updated!'); closeModal('editStaffModal'); await loadStaff(); }
+  else toast(d.error||'Failed.', false);
+}
+
+async function deleteStaff(id, name) {
+  if (!confirm(`Remove ${name} from staff?`)) return;
+  const r = await fetch(`/api/staff/${id}`, {method:'DELETE'});
+  if (r.ok) { toast(`${name} removed.`); await loadStaff(); }
+  else { const d=await r.json(); toast(d.error||'Failed.', false); }
+}
+
+// Close modals on background click
+document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('show'); }));
+
+init();
+</script>
+</body>
+</html>

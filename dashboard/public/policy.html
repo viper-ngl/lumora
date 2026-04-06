@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Policy — Nova Moderation</title>
+<link rel="stylesheet" href="/nova-shared.css">
+<style>
+.policy-nav{display:flex;gap:8px;margin-bottom:32px;flex-wrap:wrap;}
+.policy-tab{padding:8px 18px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text2);font-family:'Inter',sans-serif;transition:all .2s;}
+.policy-tab.active{background:var(--accent-dim);border-color:rgba(124,111,255,.3);color:var(--accent2);}
+.policy-content{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:32px;font-size:15px;line-height:1.9;color:var(--text2);white-space:pre-wrap;}
+.policy-content:empty::before{content:'This policy has not been written yet. Check back soon.';color:var(--text3);}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <a class="topnav-logo" href="/">Nova<span>.</span></a>
+  <div class="topnav-links"><a href="/">Home</a><a href="/updates">Updates</a><a href="/team">Team</a></div>
+  <div class="topnav-actions" id="navAuth">
+    <a class="btn btn-ghost btn-sm" href="/login">Log in</a>
+  </div>
+</nav>
+<div class="section-wrap narrow" style="padding-top:100px">
+  <h1 class="page-title" id="policyTitle">Policy</h1>
+  <p class="page-subtitle">Nova Moderation's legal documents and policies.</p>
+  <div class="policy-nav">
+    <button class="policy-tab active" onclick="loadPolicy('privacy')">Privacy Policy</button>
+    <button class="policy-tab" onclick="loadPolicy('terms')">Terms of Service</button>
+  </div>
+  <div class="policy-content" id="policyContent"><div class="loading-state"><div class="spinner"></div></div></div>
+  <p style="font-size:12px;color:var(--text3);margin-top:16px" id="policyMeta"></p>
+</div>
+<footer class="site-footer">
+  <div class="footer-brand">Nova<span>.</span></div>
+  <div class="footer-links"><a href="/">Home</a><a href="/team">Team</a><a href="/apply">Apply</a></div>
+  <div class="footer-copy">Powered by Lumora Services</div>
+</footer>
+<script>
+fetch('/api/me').then(r=>r.json()).then(u=>{if(u?.id)document.getElementById('navAuth').innerHTML=`<a class="btn btn-primary btn-sm" href="/dashboard">Dashboard</a>`;}).catch(()=>{});
+
+const titles={privacy:'Privacy Policy',terms:'Terms of Service'};
+let current='privacy';
+
+async function loadPolicy(type){
+  current=type;
+  document.querySelectorAll('.policy-tab').forEach(t=>t.classList.toggle('active',t.textContent.toLowerCase().includes(type==='privacy'?'privacy':'terms')));
+  document.getElementById('policyTitle').textContent=titles[type];
+  document.getElementById('policyContent').textContent='';
+  document.getElementById('policyContent').innerHTML='<div class="loading-state"><div class="spinner"></div></div>';
+  const data=await fetch(`/api/policy/${type}`).then(r=>r.json()).catch(()=>({content:''}));
+  document.getElementById('policyContent').textContent=data.content||'';
+  if(data.updated_at) document.getElementById('policyMeta').textContent=`Last updated: ${new Date(data.updated_at).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}`;
+}
+
+// Check if URL is /terms
+if(location.pathname==='/terms') loadPolicy('terms');
+else loadPolicy('privacy');
+</script>
+</body>
+</html>

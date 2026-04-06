@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Server — Nova</title>
+<link rel="stylesheet" href="/nova-shared.css">
+<style>
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);}
+.toggle-row:last-child{border-bottom:none;padding-bottom:0;}
+.toggle-info h4{font-size:14px;font-weight:500;}.toggle-info p{font-size:12px;color:var(--text2);margin-top:2px;}
+.del-btn{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 8px;border-radius:6px;transition:all .15s;font-size:14px;}.del-btn:hover{background:var(--red-dim);color:var(--red);}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.tab-bar{display:flex;gap:3px;border-bottom:1px solid var(--border);margin-bottom:24px;}
+.tab-btn{padding:9px 16px;font-size:13px;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:'Inter',sans-serif;}
+.tab-btn:hover{color:var(--text);}.tab-btn.active{color:var(--accent2);border-bottom-color:var(--accent);}
+.panel{display:none;}.panel.active{display:block;}
+.bc{display:flex;align-items:center;gap:7px;color:var(--text2);font-size:13px;margin-bottom:20px;}
+.bc a{color:var(--text2);text-decoration:none;}.bc a:hover{color:var(--text);}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">Nova<span>.</span></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="/dashboard"><span class="icon">←</span> All Servers</a>
+      <a class="nav-item active" href="#"><span class="icon">⚙️</span> Settings</a>
+      <a class="nav-item" href="#" onclick="switchTab('automod');return false"><span class="icon">🤖</span> AutoMod</a>
+      <a class="nav-item" href="#" onclick="switchTab('cases');return false"><span class="icon">📋</span> Cases</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-chip"><img class="user-avatar" id="uav" src="" alt=""><div><div class="user-name" id="uname">…</div></div></div>
+      <a class="logout-btn" href="/auth/logout">← Log out</a>
+    </div>
+  </aside>
+  <main class="main-content">
+    <div id="page"><div class="loading-state"><div class="spinner"></div><p>Loading server data…</p></div></div>
+    <footer style="margin-top:56px;padding-top:20px;border-top:1px solid var(--border);color:var(--text3);font-size:12px;text-align:center">Powered by Lumora Services</footer>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const guildId = location.pathname.split('/').pop();
+let DATA = null;
+let autoSaveTimer = null;
+
+function toast(msg,ok=true){const t=document.getElementById('toast');t.textContent=(ok?'✅ ':'❌ ')+msg;t.className='toast show '+(ok?'success':'error');setTimeout(()=>t.classList.remove('show'),3500);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function switchTab(name){
+  document.querySelectorAll('.tab-btn').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='pnl-'+name));
+}
+
+async function load(){
+  const me=await fetch('/api/me').then(r=>r.json()).catch(()=>null);
+  if(!me){location='/login';return;}
+  const av=me.avatar?`https://cdn.discordapp.com/avatars/${me.discord_id}/${me.avatar}.png?size=64`:'https://cdn.discordapp.com/embed/avatars/0.png';
+  document.getElementById('uav').src=av;
+  document.getElementById('uname').textContent=me.username;
+
+  const res=await fetch(`/api/server/${guildId}`);
+  if(!res.ok){
+    const err=await res.json();
+    document.getElementById('page').innerHTML=`<div style="text-align:center;padding:60px;color:var(--text2)">⚠️ ${esc(err.error||'Access denied')}. <a href="/dashboard" style="color:var(--accent)">Go back</a></div>`;
+    return;
+  }
+  DATA=await res.json();
+  render();
+}
+
+function render(){
+  const {guild,settings:s,infractions}=DATA;
+  const ic=guild.icon?`<img style="width:48px;height:48px;border-radius:12px;object-fit:cover" src="https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64" alt="">`:`<div style="width:48px;height:48px;border-radius:12px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.2rem;color:var(--accent2)">${guild.name.charAt(0)}</div>`;
+  const icons={ban:'🔨',kick:'👢',mute:'🔇',warn:'⚠️',unban:'✅',unmute:'🔊',timeout:'⏱️'};
+
+  const rows=infractions.length ? infractions.map(r=>`<tr>
+    <td style="color:var(--text3);font-family:monospace">#${r.id}</td>
+    <td><span class="badge badge-${r.type}">${icons[r.type]||''} ${r.type}</span></td>
+    <td style="font-family:monospace;font-size:12px">${r.user_id}</td>
+    <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.reason||'—')}</td>
+    <td style="font-family:monospace;font-size:12px">${r.moderator_id}</td>
+    <td style="color:var(--text2)">${new Date(r.created_at*1000).toLocaleDateString()}</td>
+    <td><button class="del-btn" onclick="delCase(${r.id})" title="Delete case">🗑</button></td>
+  </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:32px">No cases recorded yet.</td></tr>';
+
+  document.getElementById('page').innerHTML=`
+    <div class="bc"><a href="/dashboard">Dashboard</a> <span style="color:var(--text3)">/</span> <span>${esc(guild.name)}</span></div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:26px">
+      ${ic}
+      <div>
+        <h1 style="font-size:1.4rem;font-weight:700;margin-bottom:2px">${esc(guild.name)}</h1>
+        <p style="font-size:12px;color:var(--text2)"><span class="sync-dot"></span>Live sync • ${infractions.length} cases • ID: ${guild.id}</p>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="settings" onclick="switchTab('settings')">⚙️ Settings</button>
+      <button class="tab-btn" data-tab="automod" onclick="switchTab('automod')">🤖 AutoMod</button>
+      <button class="tab-btn" data-tab="cases" onclick="switchTab('cases')">📋 Cases (${infractions.length})</button>
+    </div>
+
+    <div class="panel active" id="pnl-settings">
+      <div class="card">
+        <h2 style="font-size:1rem;margin-bottom:18px">General Settings</h2>
+        <div class="form-grid">
+          <div class="form-group"><label>Command Prefix</label><input id="prefix" maxlength="3" value="${esc(s.prefix||'!')}"><div class="hint">1–3 characters, e.g. ! or ?</div></div>
+          <div class="form-group"><label>Warn Threshold</label><input id="warn_threshold" type="number" min="1" max="20" value="${s.warn_threshold||3}"><div class="hint">Warns before auto-action</div></div>
+          <div class="form-group"><label>Warn Action</label>
+            <select id="warn_action">
+              <option value="mute" ${s.warn_action==='mute'?'selected':''}>Mute user</option>
+              <option value="kick" ${s.warn_action==='kick'?'selected':''}>Kick user</option>
+              <option value="ban"  ${s.warn_action==='ban'?'selected':''}>Ban user</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>Mod Role ID <span style="color:var(--text3);font-weight:400;text-transform:none">(Role ID, not @mention)</span></label><input id="mod_role_id" value="${s.mod_role_id||''}" placeholder="e.g. 123456789012345678"></div>
+        <div class="form-grid">
+          <div class="form-group"><label>Log Channel ID</label><input id="log_channel" value="${s.log_channel||''}" placeholder="Channel ID for mod logs"></div>
+          <div class="form-group"><label>Mute Role ID</label><input id="mute_role_id" value="${s.mute_role_id||''}" placeholder="Role to apply on mute"></div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
+          <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+          <span id="settingsSaved" style="font-size:13px;color:var(--green);display:none">✓ Saved</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="pnl-automod">
+      <div class="card">
+        <h2 style="font-size:1rem;margin-bottom:18px">Auto-Moderation</h2>
+        <div class="toggle-row"><div class="toggle-info"><h4>Enable AutoMod</h4><p>Master toggle — all filters below only work when this is on</p></div><label class="toggle"><input type="checkbox" id="auto_mod" ${s.auto_mod?'checked':''} onchange="saveAutoMod()"><span class="toggle-track"></span></label></div>
+        <div class="toggle-row"><div class="toggle-info"><h4>Anti-Spam</h4><p>Auto-warn if a user sends 5+ messages within 5 seconds</p></div><label class="toggle"><input type="checkbox" id="anti_spam" ${s.anti_spam?'checked':''} onchange="saveAutoMod()"><span class="toggle-track"></span></label></div>
+        <div class="toggle-row"><div class="toggle-info"><h4>Anti-Links</h4><p>Delete messages containing external links and Discord invites</p></div><label class="toggle"><input type="checkbox" id="anti_links" ${s.anti_links?'checked':''} onchange="saveAutoMod()"><span class="toggle-track"></span></label></div>
+        <div class="toggle-row"><div class="toggle-info"><h4>Anti-Caps</h4><p>Delete messages where 70% or more of the text is uppercase</p></div><label class="toggle"><input type="checkbox" id="anti_caps" ${s.anti_caps?'checked':''} onchange="saveAutoMod()"><span class="toggle-track"></span></label></div>
+      </div>
+      <p style="font-size:12px;color:var(--text2);margin-top:10px">Changes save automatically when you toggle a switch.</p>
+    </div>
+
+    <div class="panel" id="pnl-cases">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <h2 style="font-size:1rem">Case History</h2>
+          <span style="font-size:12px;color:var(--text2)">${infractions.length} total cases</span>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>#</th><th>Type</th><th>User ID</th><th>Reason</th><th>Mod ID</th><th>Date</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+      </div>
+    </div>`;
+}
+
+async function saveSettings(){
+  const body={
+    prefix: document.getElementById('prefix').value,
+    warn_threshold: parseInt(document.getElementById('warn_threshold').value)||3,
+    warn_action: document.getElementById('warn_action').value,
+    mod_role_id: document.getElementById('mod_role_id').value||null,
+    log_channel: document.getElementById('log_channel').value||null,
+    mute_role_id: document.getElementById('mute_role_id').value||null,
+  };
+  const r=await fetch(`/api/server/${guildId}/settings`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.ok){
+    const d=await r.json();
+    DATA.settings=d.settings;
+    toast('Settings saved and synced!');
+    const saved=document.getElementById('settingsSaved');
+    if(saved){saved.style.display='inline';setTimeout(()=>saved.style.display='none',3000);}
+  } else { const e=await r.json(); toast(e.error||'Save failed.',false); }
+}
+
+async function saveAutoMod(){
+  const body={
+    auto_mod: document.getElementById('auto_mod').checked?1:0,
+    anti_spam: document.getElementById('anti_spam').checked?1:0,
+    anti_links: document.getElementById('anti_links').checked?1:0,
+    anti_caps: document.getElementById('anti_caps').checked?1:0,
+  };
+  const r=await fetch(`/api/server/${guildId}/settings`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.ok) toast('AutoMod updated!');
+  else { const e=await r.json(); toast(e.error||'Save failed.',false); }
+}
+
+async function delCase(id){
+  if(!confirm(`Delete case #${id}? This cannot be undone.`))return;
+  const r=await fetch(`/api/server/${guildId}/infraction/${id}`,{method:'DELETE'});
+  if(r.ok){toast(`Case #${id} deleted.`);await load();}
+  else toast('Failed to delete.',false);
+}
+
+load();
+// Auto-refresh every 30 seconds
+setInterval(async()=>{
+  if(!DATA)return;
+  const r=await fetch(`/api/server/${guildId}`);
+  if(r.ok){const d=await r.json();DATA=d;render();}
+},30000);
+</script>
+</body>
+</html>

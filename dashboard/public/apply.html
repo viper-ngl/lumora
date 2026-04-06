@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Apply — Nova Moderation</title>
+<link rel="stylesheet" href="/nova-shared.css">
+<style>
+.app-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;margin-bottom:14px;transition:all .2s;}
+.app-card:hover{border-color:var(--border2);transform:translateY(-2px);}
+.app-title{font-size:1.05rem;font-weight:700;margin-bottom:6px;}
+.app-role{font-size:13px;color:var(--accent2);margin-bottom:8px;}
+.app-desc{font-size:14px;color:var(--text2);line-height:1.65;margin-bottom:16px;}
+.app-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.deadline{font-size:12px;color:var(--text2);}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <a class="topnav-logo" href="/">Nova<span>.</span></a>
+  <div class="topnav-links"><a href="/">Home</a><a href="/updates">Updates</a><a href="/team">Team</a></div>
+  <div class="topnav-actions" id="navAuth">
+    <a class="btn btn-ghost btn-sm" href="/login">Log in</a>
+    <a class="btn btn-primary btn-sm" href="/dashboard">Dashboard</a>
+  </div>
+</nav>
+
+<div class="section-wrap narrow" style="padding-top:100px">
+  <h1 class="page-title">Open Positions</h1>
+  <p class="page-subtitle">Join the Nova Moderation team. Sign in to apply for any open positions below.</p>
+  <div id="content"><div class="loading-state"><div class="spinner"></div><p>Loading applications…</p></div></div>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-brand">Nova<span>.</span></div>
+  <div class="footer-links"><a href="/">Home</a><a href="/updates">Updates</a><a href="/team">Team</a><a href="/policy">Policy</a></div>
+  <div class="footer-copy">Powered by Lumora Services</div>
+</footer>
+
+<script>
+let ME = null;
+fetch('/api/me').then(r=>r.json()).then(u=>{
+  ME=u;
+  if(u?.id) document.getElementById('navAuth').innerHTML=`<a class="btn btn-primary btn-sm" href="/dashboard">Dashboard</a>`;
+}).catch(()=>{});
+
+async function load(){
+  const apps=await fetch('/api/applications').then(r=>r.json()).catch(()=>[]);
+  const el=document.getElementById('content');
+  if(!apps.length){el.innerHTML='<div style="text-align:center;padding:60px;color:var(--text2)"><div style="font-size:2rem;margin-bottom:12px">📝</div><p>No open positions right now. Check back soon.</p></div>';return;}
+  el.innerHTML=apps.map(a=>`
+    <div class="app-card">
+      <div class="app-title">${esc(a.title)}</div>
+      ${a.role?`<div class="app-role">${esc(a.role)}</div>`:''}
+      ${a.description?`<div class="app-desc">${esc(a.description)}</div>`:''}
+      <div class="app-footer">
+        <div>
+          ${a.deadline?`<div class="deadline">Deadline: ${new Date(a.deadline).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div>`:''}
+          <div style="font-size:12px;color:var(--text2);margin-top:3px">${(a.questions||[]).length} questions · ${(a.responses||[]).length} applicants</div>
+        </div>
+        <a class="btn btn-primary" href="/apply/${a.id}">Apply Now →</a>
+      </div>
+    </div>`).join('');
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+load();
+</script>
+</body>
+</html>

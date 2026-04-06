@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Nova Moderation</title>
+<link rel="stylesheet" href="/nova-shared.css">
+<style>
+.hero { min-height: 100vh; display: flex; align-items: center; padding-top: 60px; position: relative; overflow: hidden; }
+.hero-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(124,111,255,0.12), transparent); pointer-events: none; }
+.hero-grid { position: absolute; inset: 0; background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size: 60px 60px; opacity: 0.3; pointer-events: none; }
+.hero-inner { max-width: 1100px; margin: 0 auto; padding: 0 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+.hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-dim); border: 1px solid rgba(124,111,255,0.3); color: var(--accent2); padding: 5px 14px; border-radius: 100px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 20px; }
+.hero-eyebrow::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.hero h1 { font-size: clamp(2.4rem,5vw,4rem); font-weight: 700; line-height: 1.1; letter-spacing: -0.04em; margin-bottom: 18px; }
+.hero h1 em { font-style: normal; color: var(--accent2); }
+.hero p { font-size: 1rem; color: var(--text2); line-height: 1.75; margin-bottom: 32px; max-width: 440px; }
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.hero-visual { position: relative; }
+.bot-card { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-xl); padding: 20px; }
+.bot-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.bot-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--accent-dim); border: 2px solid var(--accent); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+.bot-status { width: 10px; height: 10px; background: var(--green); border-radius: 50%; position: absolute; bottom: 0; right: 0; border: 2px solid var(--bg2); }
+.bot-name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px; }
+.bot-tag { font-size: 12px; color: var(--text2); }
+.cmd-preview { display: flex; flex-direction: column; gap: 8px; }
+.cmd-line { display: flex; align-items: center; gap: 10px; background: var(--bg3); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; }
+.cmd-line .cmd { color: var(--accent2); font-family: monospace; font-weight: 600; }
+.cmd-line .args { color: var(--text2); }
+.cmd-response { background: var(--bg3); border-radius: var(--radius-sm); padding: 12px 14px; border-left: 3px solid var(--green); font-size: 13px; color: var(--text2); }
+.cmd-response strong { color: var(--text); }
+.stats-bar { background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 32px 40px; display: flex; justify-content: center; gap: 64px; flex-wrap: wrap; }
+.stat-item .num { font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; color: var(--text); }.stat-item .num em { font-style: normal; color: var(--accent2); }
+.stat-item .lbl { font-size: 13px; color: var(--text2); margin-top: 2px; }
+.features-section { padding: 100px 40px; max-width: 1100px; margin: 0 auto; }
+.section-label { font-size: 12px; color: var(--accent2); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 12px; }
+.section-title { font-size: clamp(1.8rem,4vw,2.8rem); font-weight: 700; letter-spacing: -0.03em; margin-bottom: 14px; }
+.section-sub { color: var(--text2); font-size: 15px; line-height: 1.7; max-width: 500px; margin-bottom: 56px; }
+.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 16px; }
+.feature { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; transition: all 0.25s; }
+.feature:hover { border-color: var(--border2); transform: translateY(-4px); }
+.feature-icon { width: 44px; height: 44px; border-radius: var(--radius); background: var(--accent-dim); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin-bottom: 16px; }
+.feature h3 { font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
+.feature p { font-size: 13px; color: var(--text2); line-height: 1.65; }
+.cmds-section { background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 80px 40px; }
+.cmds-inner { max-width: 960px; margin: 0 auto; }
+.cmd-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 36px; }
+.cmd-tag { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 14px; font-family: monospace; font-size: 13px; color: var(--accent2); cursor: default; }
+.cmd-tag:hover { border-color: var(--border2); }
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <a class="topnav-logo" href="/">Nova<span>.</span></a>
+  <div class="topnav-links">
+    <a href="#features">Features</a>
+    <a href="#commands">Commands</a>
+    <a href="/updates">Updates</a>
+    <a href="/team">Team</a>
+    <a href="/apply">Apply</a>
+  </div>
+  <div class="topnav-actions" id="navActions">
+    <a class="btn btn-ghost btn-sm" href="/login">Log in</a>
+    <a class="btn btn-primary btn-sm" href="https://discord.com/oauth2/authorize?client_id=1489786887999590450&permissions=8&integration_type=0&scope=bot+applications.commands" target="_blank">Add to Server</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-inner">
+    <div>
+      <div class="hero-eyebrow">Nova Moderation — Public Bot</div>
+      <h1>Protect your server<br>with <em>Nova.</em></h1>
+      <p>A full-featured public moderation bot with slash commands, smart auto-moderation, case tracking, and a live web dashboard.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="https://discord.com/oauth2/authorize?client_id=1489786887999590450&permissions=8&integration_type=0&scope=bot+applications.commands" target="_blank">Add Nova to Discord</a>
+        <a class="btn btn-ghost" href="/dashboard">Open Dashboard</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="bot-card">
+        <div class="bot-card-header">
+          <div style="position:relative">
+            <div class="bot-avatar">⚡</div>
+            <div class="bot-status"></div>
+          </div>
+          <div><div class="bot-name">Nova</div><div class="bot-tag">Moderation Bot • Online</div></div>
+        </div>
+        <div class="cmd-preview">
+          <div class="cmd-line"><span class="cmd">/ban</span><span class="args">@user 7d Spamming channels</span></div>
+          <div class="cmd-response">🔨 <strong>User banned</strong> for 7 days — Case #42</div>
+          <div class="cmd-line"><span class="cmd">/warn</span><span class="args">@user Using slurs</span></div>
+          <div class="cmd-response">⚠️ <strong>Warning issued</strong> — Total warns: 2</div>
+          <div class="cmd-line"><span class="cmd">/setup</span><span class="args">logchannel #mod-logs</span></div>
+          <div class="cmd-response">✅ <strong>Log channel set</strong> to #mod-logs</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="stats-bar">
+  <div class="stat-item"><div class="num">13<em>+</em></div><div class="lbl">Commands</div></div>
+  <div class="stat-item"><div class="num">3</div><div class="lbl">AutoMod Filters</div></div>
+  <div class="stat-item"><div class="num">2</div><div class="lbl">Command Styles</div></div>
+  <div class="stat-item"><div class="num">1</div><div class="lbl">Live Dashboard</div></div>
+</div>
+
+<section class="features-section" id="features">
+  <div class="section-label">Features</div>
+  <h2 class="section-title">Built for real moderation.</h2>
+  <p class="section-sub">Every feature you actually need, nothing you don't. Nova stays out of the way until you need it.</p>
+  <div class="features-grid">
+    <div class="feature"><div class="feature-icon">⚔️</div><h3>Full mod suite</h3><p>Ban, kick, mute, timeout, warn, purge, lock — all with slash and prefix commands that work the same way.</p></div>
+    <div class="feature"><div class="feature-icon">🤖</div><h3>Smart auto-mod</h3><p>Three configurable filters — anti-spam, anti-links, anti-caps — with escalating punishment at warn thresholds.</p></div>
+    <div class="feature"><div class="feature-icon">📋</div><h3>Case tracking</h3><p>Every action creates a numbered case with the moderator, reason, and timestamp. Full history per user.</p></div>
+    <div class="feature"><div class="feature-icon">🌐</div><h3>Live dashboard</h3><p>Server owners log in with Discord and manage settings, view infractions, and configure auto-mod in real time.</p></div>
+    <div class="feature"><div class="feature-icon">🔒</div><h3>Global blacklist</h3><p>Nova staff can blacklist users globally — they're auto-banned from all Nova-protected servers the moment they join.</p></div>
+    <div class="feature"><div class="feature-icon">⏱️</div><h3>Temp punishments</h3><p>Set a duration on bans and mutes. They expire automatically — no manual cleanup needed.</p></div>
+    <div class="feature"><div class="feature-icon">📣</div><h3>Mod logging</h3><p>Every action is posted to your designated log channel with full context and embed formatting.</p></div>
+    <div class="feature"><div class="feature-icon">⚙️</div><h3>Per-server config</h3><p>Custom prefix, mod role, mute role, warn thresholds, and escalation actions — configured per server.</p></div>
+  </div>
+</section>
+
+<section class="cmds-section" id="commands">
+  <div class="cmds-inner">
+    <div class="section-label">Commands</div>
+    <h2 class="section-title">Slash &amp; prefix.</h2>
+    <p class="section-sub">Every command works as both a slash command and with your custom prefix (default <code style="color:var(--accent2);font-family:monospace">!</code>).</p>
+    <div class="cmd-tags">
+      <div class="cmd-tag">/ban</div><div class="cmd-tag">/unban</div><div class="cmd-tag">/kick</div>
+      <div class="cmd-tag">/mute</div><div class="cmd-tag">/unmute</div><div class="cmd-tag">/timeout</div>
+      <div class="cmd-tag">/warn</div><div class="cmd-tag">/purge</div><div class="cmd-tag">/lock</div>
+      <div class="cmd-tag">/unlock</div><div class="cmd-tag">/infractions</div><div class="cmd-tag">/setup</div>
+      <div class="cmd-tag">/help</div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="footer-brand">Nova<span>.</span></div>
+  <div class="footer-links">
+    <a href="/dashboard">Dashboard</a>
+    <a href="/updates">Updates</a>
+    <a href="/apply">Apply</a>
+    <a href="/team">Team</a>
+    <a href="/policy">Privacy Policy</a>
+    <a href="/terms">Terms of Service</a>
+  </div>
+  <div class="footer-copy">Powered by Lumora Services</div>
+</footer>
+
+<script>
+fetch('/api/me').then(r=>r.json()).then(u=>{
+  if(u?.id) document.getElementById('navActions').innerHTML=`<a class="btn btn-ghost btn-sm" href="/dashboard">Dashboard</a><a class="btn btn-primary btn-sm" href="https://discord.com/oauth2/authorize?client_id=1489786887999590450&permissions=8&integration_type=0&scope=bot+applications.commands" target="_blank">Add to Server</a>`;
+}).catch(()=>{});
+</script>
+</body>
+</html>

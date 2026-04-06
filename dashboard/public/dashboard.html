@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard — Nova</title>
+<link rel="stylesheet" href="/nova-shared.css">
+<style>
+.guild-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
+.guild-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;display:flex;flex-direction:column;gap:14px;transition:all .2s;}
+.guild-card:hover{border-color:var(--border2);transform:translateY(-2px);}
+.guild-header{display:flex;align-items:center;gap:12px;}
+.guild-icon{width:44px;height:44px;border-radius:12px;object-fit:cover;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.1rem;color:var(--accent2);flex-shrink:0;}
+.guild-name{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.guild-meta{font-size:12px;color:var(--text2);margin-top:2px;}
+.guild-stats{display:flex;gap:14px;}
+.gs{font-size:12px;color:var(--text2);}
+.gs strong{color:var(--text);display:block;font-size:14px;font-family:'Space Grotesk',sans-serif;}
+.notice{border-radius:var(--radius);padding:14px 18px;margin-bottom:20px;font-size:14px;display:none;}
+.notice-discord{background:var(--accent-dim);border:1px solid rgba(124,111,255,.25);color:var(--accent2);}
+.notice-admin{background:rgba(124,111,255,.08);border:1px solid rgba(124,111,255,.2);color:var(--accent2);}
+.notice a{color:var(--accent);text-decoration:none;font-weight:500;margin-left:4px;}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">Nova<span>.</span></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">General</div>
+      <a class="nav-item active" href="/dashboard"><span class="icon">🏠</span> My Servers</a>
+      <a class="nav-item" href="/account"><span class="icon">👤</span> Account</a>
+      <div class="nav-section">Nova</div>
+      <a class="nav-item" href="/updates"><span class="icon">📋</span> Updates</a>
+      <a class="nav-item" href="/apply"><span class="icon">📝</span> Apply</a>
+      <a class="nav-item" href="/team"><span class="icon">👥</span> Team</a>
+      <div class="nav-section">Support</div><a class="nav-item" href="/tickets"><span class="icon">🎫</span> My Tickets</a><div id="staffLinks" style="display:none">
+        <div class="nav-section">Staff</div>
+        <a class="nav-item" href="/owner" id="ownerLink" style="display:none"><span class="icon">👑</span> Owner Panel</a><a class="nav-item" href="/admin"><span class="icon">🛡️</span> Staff Panel</a>
+        <a class="nav-item" href="/org"><span class="icon">🏢</span> Organization</a>
+        <a class="nav-item" href="/network"><span class="icon">🌐</span> Network Mgmt</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <img class="user-avatar" id="uav" src="" alt="">
+        <div><div class="user-name" id="uname">Loading…</div><div class="user-role" id="urole"></div></div>
+      </div>
+      <a class="logout-btn" href="/auth/logout">← Log out</a>
+    </div>
+  </aside>
+  <main class="main-content">
+    <div class="page-header"><h1>Your Servers</h1><p>Select a server to manage its moderation settings and view live data.</p></div>
+
+    <div id="discordNotice" class="notice notice-discord">
+      🔗 Your Discord account isn't linked. <a href="/auth/discord">Connect Discord</a> to manage your servers.
+    </div>
+    <div id="adminNotice" class="notice notice-admin">
+      🛡️ You have Nova Staff access. <a href="/admin">Staff Panel</a> · <a href="/network">Network Management</a>
+    </div>
+
+    <div id="content"><div class="loading-state"><div class="spinner"></div><p>Loading your servers…</p></div></div>
+    <footer style="margin-top:56px;padding-top:20px;border-top:1px solid var(--border);color:var(--text3);font-size:12px;text-align:center">Powered by Lumora Services</footer>
+  </main>
+</div>
+
+<script>
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function init(){
+  const me = await fetch('/api/me').then(r=>r.json()).catch(()=>null);
+  if(!me || !me.id){ location.href='/login'; return; }
+
+  // Set sidebar user info
+  const av = me.avatar && me.discord_id
+    ? `https://cdn.discordapp.com/avatars/${me.discord_id}/${me.avatar}.png?size=64`
+    : `https://cdn.discordapp.com/embed/avatars/0.png`;
+  document.getElementById('uav').src   = av;
+  document.getElementById('uname').textContent = me.username || 'Unknown';
+  document.getElementById('urole').textContent  = me.isAdmin ? 'Nova Staff' : '';
+
+  if(me.isOwner) document.getElementById("ownerLink").style.display="flex";
+  if(me.isAdmin){
+    document.getElementById('adminNotice').style.display = 'flex';
+    document.getElementById('staffLinks').style.display  = 'block';
+  }
+
+  // If no Discord linked, show notice
+  if(!me.has_discord){
+    document.getElementById('discordNotice').style.display = 'flex';
+    document.getElementById('content').innerHTML = `
+      <div style="text-align:center;padding:60px">
+        <div style="font-size:2rem;margin-bottom:12px">🔗</div>
+        <h3 style="margin-bottom:8px">Connect Discord to see your servers</h3>
+        <p style="color:var(--text2);margin-bottom:24px;font-size:14px">Your Discord account must be linked to manage servers from the dashboard.</p>
+        <a class="btn btn-primary" href="/auth/discord">Connect Discord Account</a>
+      </div>`;
+    return;
+  }
+
+  // Fetch guilds
+  const res    = await fetch('/api/guilds');
+  const guilds = await res.json();
+
+  if(!res.ok){
+    if(guilds.needsDiscord){
+      document.getElementById('discordNotice').style.display = 'flex';
+      document.getElementById('content').innerHTML = `
+        <div style="text-align:center;padding:60px">
+          <div style="font-size:2rem;margin-bottom:12px">⚠️</div>
+          <h3 style="margin-bottom:8px">Discord token expired</h3>
+          <p style="color:var(--text2);margin-bottom:24px;font-size:14px">Please re-login with Discord to refresh your access.</p>
+          <a class="btn btn-primary" href="/auth/discord">Re-connect Discord</a>
+        </div>`;
+      return;
+    }
+    document.getElementById('content').innerHTML = `<div style="text-align:center;padding:60px;color:var(--text2)">Error: ${esc(guilds.error || 'Failed to load servers')}</div>`;
+    return;
+  }
+
+  const el = document.getElementById('content');
+  if(!guilds.length){
+    el.innerHTML = `
+      <div style="text-align:center;padding:60px">
+        <div style="font-size:2rem;margin-bottom:12px">🤔</div>
+        <h3 style="margin-bottom:8px">No managed servers found</h3>
+        <p style="color:var(--text2);font-size:14px;margin-bottom:22px">You need Administrator permission in a server to manage it here.</p>
+        <a class="btn btn-primary" href="https://discord.com/oauth2/authorize?client_id=1489786887999590450&permissions=8&integration_type=0&scope=bot+applications.commands" target="_blank">Add Nova to a Server</a>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = '<div class="guild-grid" id="gg"></div>';
+  const gg = document.getElementById('gg');
+  for(const g of guilds){
+    const s  = g.settings || {};
+    const ic = g.icon
+      ? `<img class="guild-icon" src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64" alt="">`
+      : `<div class="guild-icon">${g.name.charAt(0).toUpperCase()}</div>`;
+    const card = document.createElement('div');
+    card.className = 'guild-card';
+    card.innerHTML = `
+      <div class="guild-header">${ic}<div><div class="guild-name">${esc(g.name)}</div><div class="guild-meta">${g.id}</div></div></div>
+      <div class="guild-stats">
+        <div class="gs"><strong>${g.infraction_count||0}</strong>Cases</div>
+        <div class="gs"><strong>${esc(s.prefix||'!')}</strong>Prefix</div>
+        <div class="gs"><strong>${s.auto_mod?'On':'Off'}</strong>AutoMod</div>
+      </div>
+      <a class="btn btn-ghost" style="justify-content:center" href="/server/${g.id}">Manage →</a>`;
+    gg.appendChild(card);
+  }
+}
+
+init();
+</script>
+</body>
+</html>

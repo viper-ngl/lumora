@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Updates — Nova Moderation</title>
+<link rel="stylesheet" href="/nova-shared.css">
+<style>
+.update-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;margin-bottom:16px;transition:border-color .2s;}
+.update-card:hover{border-color:var(--border2);}
+.update-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px;}
+.update-title{font-size:1.1rem;font-weight:700;margin-bottom:4px;}
+.update-meta{font-size:12px;color:var(--text2);}
+.version-badge{background:var(--accent-dim);color:var(--accent2);border:1px solid rgba(124,111,255,.2);border-radius:100px;padding:4px 12px;font-size:12px;font-weight:600;white-space:nowrap;}
+.tag{background:var(--bg3);border:1px solid var(--border);border-radius:100px;padding:2px 10px;font-size:11px;color:var(--text2);margin-right:5px;}
+.update-body{font-size:14px;color:var(--text2);line-height:1.8;white-space:pre-wrap;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <a class="topnav-logo" href="/">Nova<span>.</span></a>
+  <div class="topnav-links"><a href="/">Home</a><a href="/apply">Apply</a><a href="/team">Team</a><a href="/policy">Policy</a></div>
+  <div class="topnav-actions" id="navAuth">
+    <a class="btn btn-ghost btn-sm" href="/login">Log in</a>
+    <a class="btn btn-primary btn-sm" href="/dashboard">Dashboard</a>
+  </div>
+</nav>
+
+<div class="section-wrap narrow" style="padding-top:100px">
+  <h1 class="page-title">Updates</h1>
+  <p class="page-subtitle">The latest patch notes and improvements to Nova Moderation.</p>
+  <div id="content"><div class="loading-state"><div class="spinner"></div><p>Loading updates…</p></div></div>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-brand">Nova<span>.</span></div>
+  <div class="footer-links"><a href="/">Home</a><a href="/apply">Apply</a><a href="/team">Team</a><a href="/policy">Policy</a><a href="/terms">Terms</a></div>
+  <div class="footer-copy">Powered by Lumora Services</div>
+</footer>
+
+<script>
+fetch('/api/me').then(r=>r.json()).then(u=>{if(u?.id)document.getElementById('navAuth').innerHTML=`<a class="btn btn-primary btn-sm" href="/dashboard">Dashboard</a>`;}).catch(()=>{});
+
+async function load(){
+  const updates=await fetch('/api/updates').then(r=>r.json()).catch(()=>[]);
+  const el=document.getElementById('content');
+  if(!updates.length){el.innerHTML='<div style="text-align:center;padding:60px;color:var(--text2)"><div style="font-size:2rem;margin-bottom:12px">📋</div><p>No updates posted yet. Check back soon.</p></div>';return;}
+  el.innerHTML=updates.map(u=>`
+    <div class="update-card">
+      <div class="update-header">
+        <div>
+          <div class="update-title">${esc(u.title)}</div>
+          <div class="update-meta">${new Date(u.created_at).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})} · by ${esc(u.author||'Nova Team')}</div>
+          ${(u.tags||[]).length?`<div style="margin-top:8px">${u.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}
+        </div>
+        ${u.version?`<span class="version-badge">${esc(u.version)}</span>`:''}
+      </div>
+      <div class="update-body">${esc(u.content)}</div>
+    </div>`).join('');
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+load();
+</script>
+</body>
+</html>

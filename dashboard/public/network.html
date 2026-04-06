@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Network Management — Nova</title>
+<link rel="stylesheet" href="/nova-shared.css">
+<style>
+.tab-bar{display:flex;gap:3px;border-bottom:1px solid var(--border);margin-bottom:24px;}
+.tab-btn{padding:9px 16px;font-size:13px;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:'Inter',sans-serif;}
+.tab-btn:hover{color:var(--text);}.tab-btn.active{color:var(--accent2);border-bottom-color:var(--accent);}
+.panel{display:none;}.panel.active{display:block;}
+textarea{min-height:120px;resize:vertical;}
+.app-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
+.app-card h3{font-size:15px;font-weight:600;margin-bottom:6px;}
+.app-responses{margin-top:12px;border-top:1px solid var(--border);padding-top:12px;}
+.response-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;font-size:13px;}
+.member-card{display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;}
+.del-btn{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 8px;border-radius:6px;transition:all .15s;font-size:14px;}.del-btn:hover{background:var(--red-dim);color:var(--red);}
+.patch-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">Nova<span>.</span></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="/dashboard"><span class="icon">🏠</span> Dashboard</a>
+      <div class="nav-section">Staff</div>
+      <a class="nav-item" href="/admin"><span class="icon">🛡️</span> Staff Panel</a>
+      <a class="nav-item" href="/org"><span class="icon">🏢</span> Organization</a>
+      <a class="nav-item active" href="/network"><span class="icon">🌐</span> Network Mgmt</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-chip"><img class="user-avatar" id="uav" src="" alt=""><div><div class="user-name" id="uname">…</div><div class="user-role">Network Management</div></div></div>
+      <a class="logout-btn" href="/auth/logout">← Log out</a>
+    </div>
+  </aside>
+  <main class="main-content">
+    <div style="background:rgba(124,111,255,.08);border:1px solid rgba(124,111,255,.25);border-radius:var(--radius);padding:12px 16px;margin-bottom:24px;font-size:13px;color:var(--accent2)">🌐 <strong>Network Management</strong> — Manage public content, applications, team, and policies.</div>
+    <div class="page-header"><h1>Network Management</h1><p>Manage public-facing content across the Nova platform.</p></div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="apps" onclick="st('apps')">📝 Applications</button>
+      <button class="tab-btn" data-tab="patches" onclick="st('patches')">🚀 Patch Notes</button>
+      <button class="tab-btn" data-tab="team" onclick="st('team')">👥 Team</button>
+      <button class="tab-btn" data-tab="policies" onclick="st('policies')">📄 Policies</button>
+    </div>
+
+    <!-- APPLICATIONS -->
+    <div class="panel active" id="pnl-apps">
+      <div class="card" style="margin-bottom:16px">
+        <h2 style="font-size:1rem;margin-bottom:16px">Create New Application</h2>
+        <div class="form-grid">
+          <div class="form-group"><label>Title</label><input id="appTitle" placeholder="e.g. Moderator Application"></div>
+          <div class="form-group"><label>Role</label><input id="appRole" placeholder="e.g. Server Moderator"></div>
+        </div>
+        <div class="form-group"><label>Description</label><textarea id="appDesc" placeholder="What is this position? What are the requirements?" style="min-height:80px"></textarea></div>
+        <div class="form-group"><label>Deadline</label><input type="date" id="appDeadline"></div>
+        <div class="form-group">
+          <label>Questions <span style="color:var(--text3);font-weight:400;text-transform:none">(one per line)</span></label>
+          <textarea id="appQuestions" placeholder="Why do you want to join Nova?&#10;How much time can you dedicate per week?&#10;Do you have any prior moderation experience?"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="createApp()">Post Application</button>
+      </div>
+      <div class="card">
+        <h2 style="font-size:1rem;margin-bottom:16px">Active Applications</h2>
+        <div id="appsList"><div class="loading-state"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- PATCH NOTES -->
+    <div class="panel" id="pnl-patches">
+      <div class="card" style="margin-bottom:16px">
+        <h2 style="font-size:1rem;margin-bottom:16px">Post New Update</h2>
+        <div class="form-grid">
+          <div class="form-group"><label>Title</label><input id="patchTitle" placeholder="e.g. Nova v2.1 — AutoMod Improvements"></div>
+          <div class="form-group"><label>Version</label><input id="patchVersion" placeholder="e.g. v2.1.0"></div>
+        </div>
+        <div class="form-group"><label>Tags <span style="color:var(--text3);font-weight:400;text-transform:none">(comma-separated)</span></label><input id="patchTags" placeholder="bug fix, new feature, improvement"></div>
+        <div class="form-group"><label>Content</label><textarea id="patchContent" style="min-height:160px" placeholder="Describe what changed in this update..."></textarea></div>
+        <button class="btn btn-primary" onclick="createPatch()">Post Update</button>
+      </div>
+      <div class="card">
+        <h2 style="font-size:1rem;margin-bottom:16px">Published Updates</h2>
+        <div id="patchList"><div class="loading-state"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- TEAM -->
+    <div class="panel" id="pnl-team">
+      <div class="card" style="margin-bottom:16px">
+        <h2 style="font-size:1rem;margin-bottom:16px">Add Team Member</h2>
+        <div class="form-grid">
+          <div class="form-group"><label>Name</label><input id="tmName" placeholder="Display name"></div>
+          <div class="form-group"><label>Role/Title</label><input id="tmRole" placeholder="e.g. Head Developer"></div>
+          <div class="form-group"><label>Discord ID</label><input id="tmDiscord" placeholder="Discord User ID"></div>
+          <div class="form-group"><label>Display Order</label><input id="tmOrder" type="number" value="0" min="0"></div>
+        </div>
+        <div class="form-group"><label>Bio</label><textarea id="tmBio" style="min-height:70px" placeholder="Short description"></textarea></div>
+        <button class="btn btn-primary" onclick="addMember()">Add Member</button>
+      </div>
+      <div class="card">
+        <h2 style="font-size:1rem;margin-bottom:16px">Current Team</h2>
+        <div id="teamList"><div class="loading-state"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- POLICIES -->
+    <div class="panel" id="pnl-policies">
+      <div class="card" style="margin-bottom:16px">
+        <h2 style="font-size:1rem;margin-bottom:16px">Privacy Policy</h2>
+        <div class="form-group"><textarea id="privacyContent" style="min-height:200px" placeholder="Write your privacy policy here..."></textarea></div>
+        <button class="btn btn-primary" onclick="savePolicy('privacy')">Save Privacy Policy</button>
+      </div>
+      <div class="card">
+        <h2 style="font-size:1rem;margin-bottom:16px">Terms of Service</h2>
+        <div class="form-group"><textarea id="termsContent" style="min-height:200px" placeholder="Write your terms of service here..."></textarea></div>
+        <button class="btn btn-primary" onclick="savePolicy('terms')">Save Terms of Service</button>
+      </div>
+    </div>
+
+    <footer style="margin-top:56px;padding-top:20px;border-top:1px solid var(--border);color:var(--text3);font-size:12px;text-align:center">Powered by Lumora Services</footer>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+function toast(msg,ok=true){const t=document.getElementById('toast');t.textContent=(ok?'✅ ':'❌ ')+msg;t.className='toast show '+(ok?'success':'error');setTimeout(()=>t.classList.remove('show'),3500);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function st(n){document.querySelectorAll('.tab-btn').forEach(t=>t.classList.toggle('active',t.dataset.tab===n));document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='pnl-'+n));}
+
+async function init(){
+  const me=await fetch('/api/me').then(r=>r.json()).catch(()=>null);
+  if(!me?.isNetworkMgmt){location='/dashboard';return;}
+  const av=me.avatar?`https://cdn.discordapp.com/avatars/${me.discord_id}/${me.avatar}.png?size=64`:'https://cdn.discordapp.com/embed/avatars/0.png';
+  document.getElementById('uav').src=av;document.getElementById('uname').textContent=me.username;
+  loadAll();
+}
+
+async function loadAll(){loadApps();loadPatches();loadTeam();loadPolicies();}
+
+async function loadApps(){
+  const apps=await fetch('/api/applications/all').then(r=>r.json()).catch(()=>[]);
+  const el=document.getElementById('appsList');
+  if(!apps.length){el.innerHTML='<p style="color:var(--text2);text-align:center;padding:24px">No applications posted yet.</p>';return;}
+  el.innerHTML=apps.map(a=>`
+    <div class="app-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div>
+          <h3>${esc(a.title)}</h3>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:6px">${esc(a.role||'')} · <span class="badge badge-${a.status}">${a.status}</span> · ${(a.responses||[]).length} responses</div>
+          <div style="font-size:12px;color:var(--text2)">${esc(a.description||'')}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-ghost btn-sm" onclick="toggleAppStatus('${a.id}','${a.status==='open'?'closed':'open'}')">${a.status==='open'?'Close':'Open'}</button>
+          <button class="del-btn" onclick="deleteApp('${a.id}')">🗑</button>
+        </div>
+      </div>
+      ${(a.responses||[]).length?`<div class="app-responses"><strong style="font-size:12px;color:var(--text2)">RESPONSES (${a.responses.length})</strong>${a.responses.map(r=>`
+        <div class="response-item">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <strong>${esc(r.username||r.user_id)}</strong>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span class="badge badge-${r.status||'pending'}">${r.status||'pending'}</span>
+              <button class="btn btn-ghost btn-sm" onclick="approveResponse('${a.id}','${r.id}','approved')">✓</button>
+              <button class="btn btn-danger btn-sm" onclick="approveResponse('${a.id}','${r.id}','denied')">✗</button>
+            </div>
+          </div>
+          ${Object.entries(r.answers||{}).map(([q,ans])=>`<div style="margin-bottom:6px"><div style="color:var(--text2);font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">${esc(q)}</div><div>${esc(String(ans))}</div></div>`).join('')}
+        </div>`).join('')}</div>`:''}`
+  ).join('');
+}
+
+async function createApp(){
+  const title=document.getElementById('appTitle').value.trim();
+  const questions=document.getElementById('appQuestions').value.trim().split('\n').filter(q=>q.trim());
+  if(!title||!questions.length){toast('Title and at least one question required.',false);return;}
+  const r=await fetch('/api/applications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,role:document.getElementById('appRole').value,description:document.getElementById('appDesc').value,deadline:document.getElementById('appDeadline').value,questions})});
+  if(r.ok){toast('Application posted!');document.getElementById('appTitle').value='';document.getElementById('appRole').value='';document.getElementById('appDesc').value='';document.getElementById('appQuestions').value='';loadApps();}
+  else toast('Failed.',false);
+}
+async function toggleAppStatus(id,status){
+  await fetch(`/api/applications/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
+  loadApps();
+}
+async function deleteApp(id){
+  if(!confirm('Delete this application?'))return;
+  await fetch(`/api/applications/${id}`,{method:'DELETE'});
+  toast('Deleted.');loadApps();
+}
+async function approveResponse(appId,rid,status){
+  await fetch(`/api/applications/${appId}/response/${rid}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
+  toast(status==='approved'?'Approved!':'Denied.');loadApps();
+}
+
+async function loadPatches(){
+  const patches=await fetch('/api/updates').then(r=>r.json()).catch(()=>[]);
+  const el=document.getElementById('patchList');
+  if(!patches.length){el.innerHTML='<p style="color:var(--text2);text-align:center;padding:24px">No updates posted yet.</p>';return;}
+  el.innerHTML=patches.map(p=>`
+    <div class="patch-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div>
+          <div style="font-size:14px;font-weight:600">${esc(p.title)} <span style="font-size:12px;color:var(--accent2)">${esc(p.version||'')}</span></div>
+          <div style="font-size:12px;color:var(--text2);margin-top:3px">${new Date(p.created_at).toLocaleDateString()} · by ${esc(p.author||'')}</div>
+          ${(p.tags||[]).length?`<div style="margin-top:6px">${p.tags.map(t=>`<span style="background:var(--bg2);border:1px solid var(--border);border-radius:100px;padding:2px 8px;font-size:11px;color:var(--text2);margin-right:4px">${esc(t)}</span>`).join('')}</div>`:''}
+        </div>
+        <button class="del-btn" onclick="deletePatch('${p.id}')">🗑</button>
+      </div>
+      <div style="font-size:13px;color:var(--text2);margin-top:10px;white-space:pre-wrap">${esc(p.content)}</div>
+    </div>`).join('');
+}
+
+async function createPatch(){
+  const title=document.getElementById('patchTitle').value.trim();
+  const content=document.getElementById('patchContent').value.trim();
+  if(!title||!content){toast('Title and content required.',false);return;}
+  const tags=document.getElementById('patchTags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const r=await fetch('/api/updates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,version:document.getElementById('patchVersion').value,content,tags})});
+  if(r.ok){toast('Update posted!');document.getElementById('patchTitle').value='';document.getElementById('patchVersion').value='';document.getElementById('patchContent').value='';document.getElementById('patchTags').value='';loadPatches();}
+  else toast('Failed.',false);
+}
+async function deletePatch(id){if(!confirm('Delete this update?'))return;await fetch(`/api/updates/${id}`,{method:'DELETE'});toast('Deleted.');loadPatches();}
+
+async function loadTeam(){
+  const team=await fetch('/api/team').then(r=>r.json()).catch(()=>[]);
+  const el=document.getElementById('teamList');
+  if(!team.length){el.innerHTML='<p style="color:var(--text2);text-align:center;padding:24px">No team members added yet.</p>';return;}
+  el.innerHTML=team.map(m=>`
+    <div class="member-card">
+      <div>
+        <div style="font-weight:600;font-size:15px">${esc(m.name)}</div>
+        <div style="font-size:13px;color:var(--accent2);margin-top:2px">${esc(m.role||'')}</div>
+        ${m.bio?`<div style="font-size:12px;color:var(--text2);margin-top:4px">${esc(m.bio)}</div>`:''}
+        ${m.discord_id?`<div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:monospace">${m.discord_id}</div>`:''}
+      </div>
+      <button class="del-btn" onclick="delMember('${m.id}')">🗑</button>
+    </div>`).join('');
+}
+async function addMember(){
+  const name=document.getElementById('tmName').value.trim();
+  if(!name){toast('Name required.',false);return;}
+  const r=await fetch('/api/team',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,role:document.getElementById('tmRole').value,discord_id:document.getElementById('tmDiscord').value,bio:document.getElementById('tmBio').value,order:parseInt(document.getElementById('tmOrder').value)||0})});
+  if(r.ok){toast('Member added!');document.getElementById('tmName').value='';document.getElementById('tmRole').value='';document.getElementById('tmDiscord').value='';document.getElementById('tmBio').value='';loadTeam();}
+  else toast('Failed.',false);
+}
+async function delMember(id){if(!confirm('Remove this team member?'))return;await fetch(`/api/team/${id}`,{method:'DELETE'});toast('Removed.');loadTeam();}
+
+async function loadPolicies(){
+  const [priv,terms]=await Promise.all([
+    fetch('/api/policy/privacy').then(r=>r.json()).catch(()=>({content:''})),
+    fetch('/api/policy/terms').then(r=>r.json()).catch(()=>({content:''})),
+  ]);
+  document.getElementById('privacyContent').value=priv.content||'';
+  document.getElementById('termsContent').value=terms.content||'';
+}
+async function savePolicy(type){
+  const content=document.getElementById(type==='privacy'?'privacyContent':'termsContent').value;
+  const r=await fetch(`/api/policy/${type}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content})});
+  r.ok?toast(`${type==='privacy'?'Privacy Policy':'Terms of Service'} saved!`):toast('Save failed.',false);
+}
+
+init();
+</script>
+</body>
+</html>

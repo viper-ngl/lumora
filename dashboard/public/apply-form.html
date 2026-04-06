@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Apply — Nova</title>
+<link rel="stylesheet" href="/nova-shared.css">
+</head>
+<body>
+<nav class="topnav">
+  <a class="topnav-logo" href="/">Nova<span>.</span></a>
+  <div class="topnav-links"><a href="/apply">← All Positions</a></div>
+  <div class="topnav-actions" id="navAuth">
+    <a class="btn btn-ghost btn-sm" href="/login">Log in to apply</a>
+  </div>
+</nav>
+
+<div class="section-wrap narrow" style="padding-top:100px">
+  <div id="content"><div class="loading-state"><div class="spinner"></div><p>Loading…</p></div></div>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-brand">Nova<span>.</span></div>
+  <div class="footer-copy">Powered by Lumora Services</div>
+</footer>
+<div class="toast" id="toast"></div>
+<script>
+const appId = location.pathname.split('/').pop();
+let ME = null;
+function toast(msg,ok=true){const t=document.getElementById('toast');t.textContent=(ok?'✅ ':'❌ ')+msg;t.className='toast show '+(ok?'success':'error');setTimeout(()=>t.classList.remove('show'),3500);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function load(){
+  ME=await fetch('/api/me').then(r=>r.json()).catch(()=>null);
+  if(ME?.id) document.getElementById('navAuth').innerHTML=`<span style="font-size:13px;color:var(--text2)">Signed in as <strong>${esc(ME.username)}</strong></span>`;
+
+  const app=await fetch(`/api/applications/${appId}`).then(r=>r.json()).catch(()=>null);
+  const el=document.getElementById('content');
+
+  if(!app){el.innerHTML='<div style="text-align:center;padding:60px;color:var(--text2)">Application not found. <a href="/apply" style="color:var(--accent)">Back</a></div>';return;}
+
+  if(!ME?.id){
+    el.innerHTML=`
+      <div style="text-align:center;padding:60px">
+        <div style="font-size:2rem;margin-bottom:12px">🔐</div>
+        <h2 style="margin-bottom:8px">Sign in to apply</h2>
+        <p style="color:var(--text2);margin-bottom:24px">You need to sign in to apply for <strong>${esc(app.title)}</strong>.</p>
+        <a class="btn btn-primary" href="/login">Sign in</a>
+        <a class="btn btn-ghost" href="/login?tab=register" style="margin-left:10px">Create account</a>
+      </div>`;
+    return;
+  }
+
+  if(app.status !== 'open'){
+    el.innerHTML=`<div style="text-align:center;padding:60px;color:var(--text2)"><div style="font-size:2rem;margin-bottom:12px">🔒</div><h2>This position is closed</h2><a href="/apply" style="color:var(--accent);display:block;margin-top:16px">← View open positions</a></div>`;
+    return;
+  }
+
+  el.innerHTML=`
+    <a href="/apply" style="font-size:13px;color:var(--text2);text-decoration:none;display:flex;align-items:center;gap:5px;margin-bottom:20px">← All positions</a>
+    <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:6px">${esc(app.title)}</h1>
+    ${app.role?`<div style="font-size:14px;color:var(--accent2);margin-bottom:12px">${esc(app.role)}</div>`:''}
+    ${app.description?`<p style="font-size:15px;color:var(--text2);line-height:1.7;margin-bottom:28px">${esc(app.description)}</p>`:''}
+    <div class="card">
+      <h2 style="font-size:1rem;margin-bottom:20px">Application Form</h2>
+      <div id="questions"></div>
+      <button class="btn btn-primary" onclick="submit()">Submit Application</button>
+    </div>`;
+
+  const qEl = document.getElementById('questions');
+  (app.questions||[]).forEach((q,i)=>{
+    qEl.innerHTML += `
+      <div class="form-group">
+        <label>Question ${i+1}</label>
+        <div style="font-size:14px;margin-bottom:8px;color:var(--text)">${esc(q)}</div>
+        <textarea id="q_${i}" placeholder="Your answer…" style="min-height:80px"></textarea>
+      </div>`;
+  });
+
+  window._app=app;
+}
+
+async function submit(){
+  const app=window._app;
+  const answers={};
+  (app.questions||[]).forEach((q,i)=>{answers[q]=document.getElementById('q_'+i).value.trim();});
+  const empty=Object.values(answers).filter(a=>!a);
+  if(empty.length){toast('Please answer all questions.',false);return;}
+  const r=await fetch(`/api/applications/${appId}/apply`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({answers})});
+  const d=await r.json();
+  if(r.ok){
+    document.getElementById('content').innerHTML=`<div style="text-align:center;padding:60px"><div style="font-size:2.5rem;margin-bottom:16px">🎉</div><h2 style="margin-bottom:8px">Application submitted!</h2><p style="color:var(--text2);margin-bottom:24px">We'll review your application and get back to you. Thank you for applying to Nova.</p><a class="btn btn-ghost" href="/apply">← Back to positions</a></div>`;
+  } else toast(d.error||'Submission failed.',false);
+}
+
+load();
+</script>
+</body>
+</html>

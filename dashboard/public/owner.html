@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Owner Panel — Nova</title>
+<link rel="stylesheet" href="/nova-shared.css">
+<style>
+.tab-bar{display:flex;gap:3px;border-bottom:1px solid var(--border);margin-bottom:24px;}
+.tab-btn{padding:9px 16px;font-size:13px;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:'Inter',sans-serif;}
+.tab-btn:hover{color:var(--text);}.tab-btn.active{color:var(--accent2);border-bottom-color:var(--accent);}
+.panel{display:none;}.panel.active{display:block;}
+.acct-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+.acct-row:last-child{border-bottom:none;}
+.acct-av{width:36px;height:36px;border-radius:50%;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:var(--accent2);flex-shrink:0;object-fit:cover;}
+.acct-info{flex:1;min-width:0;}
+.acct-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.acct-meta{font-size:12px;color:var(--text2);margin-top:1px;}
+.acct-badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:100px;margin-left:6px;}
+.b-owner{background:rgba(251,191,36,.15);color:var(--yellow);}
+.b-admin{background:var(--accent-dim);color:var(--accent2);}
+.b-temp{background:var(--red-dim);color:var(--red);}
+.del-btn{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 8px;border-radius:6px;transition:all .15s;font-size:13px;}.del-btn:hover{background:var(--red-dim);color:var(--red);}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:center;justify-content:center;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-xl);padding:28px;max-width:440px;width:calc(100% - 40px);}
+.modal h2{font-size:1.1rem;margin-bottom:16px;}
+.temp-pw{font-family:monospace;font-size:1.4rem;letter-spacing:.15em;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:14px 20px;text-align:center;color:var(--yellow);margin:16px 0;}
+.search-row{display:flex;gap:10px;margin-bottom:20px;}
+.search-row input{flex:1;}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">Nova<span>.</span></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="/dashboard"><span class="icon">🏠</span> Dashboard</a>
+      <div class="nav-section">Owner</div>
+      <a class="nav-item active" href="/owner"><span class="icon">👑</span> Owner Panel</a>
+      <a class="nav-item" href="/admin"><span class="icon">🛡️</span> Staff Panel</a>
+      <a class="nav-item" href="/org"><span class="icon">🏢</span> Organization</a>
+      <a class="nav-item" href="/network"><span class="icon">🌐</span> Network Mgmt</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-chip"><img class="user-avatar" id="uav" src="" alt=""><div><div class="user-name" id="uname">…</div><div class="user-role">Owner</div></div></div>
+      <a class="logout-btn" href="/auth/logout">← Log out</a>
+    </div>
+  </aside>
+  <main class="main-content">
+    <div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:var(--radius);padding:12px 16px;margin-bottom:24px;font-size:13px;color:var(--yellow)">
+      👑 <strong>Owner Panel</strong> — Full control. Actions here affect everything.
+    </div>
+    <div class="page-header"><h1>Owner Panel</h1><p>Complete control over all Nova systems and user accounts.</p></div>
+
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card"><div class="value" id="sAccounts">—</div><div class="label">Total Accounts</div></div>
+      <div class="stat-card"><div class="value accent" id="sServers">—</div><div class="label">Servers</div></div>
+      <div class="stat-card"><div class="value" id="sCases">—</div><div class="label">Total Cases</div></div>
+      <div class="stat-card"><div class="value red" id="sBlacklist">—</div><div class="label">Blacklisted</div></div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="accounts" onclick="st('accounts')">👤 All Accounts</button>
+      <button class="tab-btn" data-tab="servers" onclick="st('servers')">🌐 Servers</button>
+      <button class="tab-btn" data-tab="cases" onclick="st('cases')">📋 Cases</button>
+      <button class="tab-btn" data-tab="blacklist" onclick="st('blacklist')">🚫 Blacklist</button>
+    </div>
+
+    <!-- ACCOUNTS -->
+    <div class="panel active" id="pnl-accounts">
+      <div class="card">
+        <h2 style="font-size:1rem;margin-bottom:16px">All Registered Accounts</h2>
+        <div class="search-row"><input id="acctSearch" placeholder="Search by username, email, or Discord ID…" oninput="filterAccounts()"></div>
+        <div id="acctList"><div class="loading-state"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- SERVERS -->
+    <div class="panel" id="pnl-servers">
+      <div class="card">
+        <h2 style="font-size:1rem;margin-bottom:16px">Registered Servers</h2>
+        <div id="serverList"><div class="loading-state"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- CASES -->
+    <div class="panel" id="pnl-cases">
+      <div class="card">
+        <h2 style="font-size:1rem;margin-bottom:16px">Recent Cases — All Servers</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>#</th><th>Type</th><th>Server</th><th>User</th><th>Reason</th><th>Date</th></tr></thead>
+          <tbody id="casesTbl"><tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text2)"><div class="spinner"></div></td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- BLACKLIST -->
+    <div class="panel" id="pnl-blacklist">
+      <div class="card">
+        <h2 style="font-size:1rem;margin-bottom:8px">Global Blacklist</h2>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:18px">Users auto-banned from all Nova-protected servers on join.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+          <input id="blId" placeholder="Discord User ID" style="flex:1;min-width:180px">
+          <input id="blReason" placeholder="Reason" style="flex:2;min-width:180px">
+          <button class="btn btn-danger" onclick="addBl()">+ Blacklist</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>User ID</th><th>Reason</th><th>Added By</th><th>Date</th><th></th></tr></thead>
+          <tbody id="blTbl"><tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text2)"><div class="spinner"></div></td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <footer style="margin-top:56px;padding-top:20px;border-top:1px solid var(--border);color:var(--text3);font-size:12px;text-align:center">Powered by Lumora Services</footer>
+  </main>
+</div>
+
+<!-- Temp password modal -->
+<div class="modal-bg" id="tempPwModal">
+  <div class="modal">
+    <h2>Temporary Password</h2>
+    <p style="font-size:13px;color:var(--text2)">Share this with the user. They will be required to change it on next login.</p>
+    <div class="temp-pw" id="tempPwValue">—</div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:16px">This password will only be shown once. Copy it now.</p>
+    <button class="btn btn-primary" style="width:100%" onclick="copyTempPw()">Copy Password</button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="document.getElementById('tempPwModal').classList.remove('show')">Close</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+let ALL_ACCOUNTS = [];
+let ME = null;
+
+function toast(msg,ok=true){const t=document.getElementById('toast');t.textContent=(ok?'✅ ':'❌ ')+msg;t.className='toast show '+(ok?'success':'error');setTimeout(()=>t.classList.remove('show'),3500);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function st(n){document.querySelectorAll('.tab-btn').forEach(t=>t.classList.toggle('active',t.dataset.tab===n));document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='pnl-'+n));}
+
+async function init(){
+  ME = await fetch('/api/me').then(r=>r.json()).catch(()=>null);
+  if(!ME?.isOwner){location.href='/dashboard';return;}
+  const av=ME.avatar&&ME.discord_id?`https://cdn.discordapp.com/avatars/${ME.discord_id}/${ME.avatar}.png?size=64`:`https://cdn.discordapp.com/embed/avatars/0.png`;
+  document.getElementById('uav').src=av;
+  document.getElementById('uname').textContent=ME.username;
+  loadAll();
+}
+
+async function loadAll(){
+  const stats = await fetch('/api/admin/stats').then(r=>r.json()).catch(()=>null);
+  if(stats){
+    document.getElementById('sServers').textContent=stats.totalServers||0;
+    document.getElementById('sCases').textContent=stats.totalInfractions||0;
+    document.getElementById('sBlacklist').textContent=stats.totalBlacklisted||0;
+    renderServers(stats.allSettings||[]);
+    renderCases(stats.recentInfractions||[]);
+  }
+  await loadAccounts();
+  await loadBlacklist();
+}
+
+async function loadAccounts(){
+  ALL_ACCOUNTS = await fetch('/api/owner/accounts').then(r=>r.json()).catch(()=>[]);
+  document.getElementById('sAccounts').textContent=ALL_ACCOUNTS.length;
+  renderAccounts(ALL_ACCOUNTS);
+}
+
+function filterAccounts(){
+  const q=document.getElementById('acctSearch').value.toLowerCase();
+  const filtered=q?ALL_ACCOUNTS.filter(a=>(a.username||'').toLowerCase().includes(q)||(a.email||'').toLowerCase().includes(q)||(a.discord_id||'').includes(q)):ALL_ACCOUNTS;
+  renderAccounts(filtered);
+}
+
+function renderAccounts(list){
+  const el=document.getElementById('acctList');
+  if(!list.length){el.innerHTML='<p style="color:var(--text2);text-align:center;padding:24px">No accounts found.</p>';return;}
+  el.innerHTML=list.map(a=>{
+    const av=a.discord_id&&a.discord_avatar?`<img class="acct-av" src="https://cdn.discordapp.com/avatars/${a.discord_id}/${a.discord_avatar}.png?size=64" alt="">`:`<div class="acct-av">${(a.username||'?').charAt(0).toUpperCase()}</div>`;
+    const badges=[];
+    if(a.discord_id===ME.discord_id) badges.push(`<span class="acct-badge b-owner">Owner</span>`);
+    if(a.temp_password) badges.push(`<span class="acct-badge b-temp">Temp PW</span>`);
+    const lastLogin=a.last_login?`Last login: ${new Date(a.last_login*1000).toLocaleDateString()}`:'Never logged in';
+    return `<div class="acct-row">
+      ${av}
+      <div class="acct-info">
+        <div class="acct-name">${esc(a.username||'Unknown')}${badges.join('')}</div>
+        <div class="acct-meta">${a.email?esc(a.email):'No email'} ${a.discord_id?`· Discord: ${a.discord_id}`:'· No Discord'} · ${lastLogin}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-ghost btn-sm" onclick="resetPw('${a.id}','${esc(a.username||'')}')">Reset PW</button>
+        ${a.discord_id!==ME.discord_id?`<button class="del-btn" onclick="deleteAcct('${a.id}','${esc(a.username||'')}')">🗑</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function resetPw(id, name){
+  if(!confirm(`Reset password for ${name}? They will get a temporary password and must change it.`))return;
+  const r=await fetch(`/api/owner/accounts/${id}/reset-password`,{method:'POST'});
+  const d=await r.json();
+  if(r.ok){
+    document.getElementById('tempPwValue').textContent=d.temp_password;
+    document.getElementById('tempPwModal').classList.add('show');
+    loadAccounts();
+  } else toast(d.error||'Failed.',false);
+}
+
+function copyTempPw(){
+  const pw=document.getElementById('tempPwValue').textContent;
+  navigator.clipboard.writeText(pw).then(()=>toast('Password copied!'));
+}
+
+async function deleteAcct(id,name){
+  if(!confirm(`Permanently delete account for ${name}? This cannot be undone.`))return;
+  const r=await fetch(`/api/owner/accounts/${id}`,{method:'DELETE'});
+  const d=await r.json();
+  if(r.ok){toast(`${name}'s account deleted.`);loadAccounts();}
+  else toast(d.error||'Failed.',false);
+}
+
+function renderServers(settings){
+  const el=document.getElementById('serverList');
+  if(!settings.length){el.innerHTML='<p style="color:var(--text2);text-align:center;padding:24px">No servers registered yet.</p>';return;}
+  el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">${settings.map(s=>`
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+      <div style="font-family:monospace;font-size:11px;color:var(--text2);margin-bottom:6px">${s.guild_id}</div>
+      <div style="font-size:13px;margin-bottom:8px">Prefix: <strong>${esc(s.prefix||'!')}</strong> · AutoMod: <strong>${s.auto_mod?'On':'Off'}</strong></div>
+      <a class="btn btn-ghost btn-sm" href="/server/${s.guild_id}">Manage →</a>
+    </div>`).join('')}</div>`;
+}
+
+function renderCases(cases){
+  const icons={ban:'🔨',kick:'👢',mute:'🔇',warn:'⚠️',unban:'✅',unmute:'🔊',timeout:'⏱️'};
+  const tb=document.getElementById('casesTbl');
+  if(!cases.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text2)">No cases yet.</td></tr>';return;}
+  tb.innerHTML=cases.map(r=>`<tr>
+    <td style="font-family:monospace;color:var(--text3)">#${r.id}</td>
+    <td><span class="badge badge-${r.type}">${icons[r.type]||''} ${r.type}</span></td>
+    <td style="font-family:monospace;font-size:11px">${r.guild_id}</td>
+    <td style="font-family:monospace;font-size:11px">${r.user_id}</td>
+    <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.reason||'—')}</td>
+    <td style="color:var(--text2)">${new Date(r.created_at*1000).toLocaleDateString()}</td>
+  </tr>`).join('');
+}
+
+async function loadBlacklist(){
+  const list=await fetch('/api/admin/blacklist').then(r=>r.json()).catch(()=>[]);
+  const tb=document.getElementById('blTbl');
+  if(!list.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text2)">No blacklisted users.</td></tr>';return;}
+  tb.innerHTML=list.map(u=>`<tr>
+    <td style="font-family:monospace;font-size:12px">${u.user_id}</td>
+    <td>${esc(u.reason||'—')}</td>
+    <td style="font-family:monospace;font-size:12px">${u.added_by}</td>
+    <td style="color:var(--text2)">${new Date(u.added_at*1000).toLocaleDateString()}</td>
+    <td><button class="del-btn" onclick="removeBl('${u.user_id}')">✕</button></td>
+  </tr>`).join('');
+}
+
+async function addBl(){
+  const userId=document.getElementById('blId').value.trim();
+  const reason=document.getElementById('blReason').value.trim();
+  if(!userId){toast('User ID required.',false);return;}
+  if(!/^\d{17,20}$/.test(userId)){toast('Invalid Discord ID.',false);return;}
+  const r=await fetch('/api/admin/blacklist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId,reason:reason||'No reason'})});
+  if(r.ok){toast(`${userId} blacklisted.`);document.getElementById('blId').value='';document.getElementById('blReason').value='';loadBlacklist();}
+  else{const d=await r.json();toast(d.error||'Failed.',false);}
+}
+async function removeBl(uid){
+  if(!confirm(`Remove ${uid} from blacklist?`))return;
+  const r=await fetch(`/api/admin/blacklist/${uid}`,{method:'DELETE'});
+  if(r.ok){toast('Removed.');loadBlacklist();}else toast('Failed.',false);
+}
+
+document.getElementById('tempPwModal').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('show');});
+init();
+setInterval(loadAll,30000);
+</script>
+</body>
+</html>
