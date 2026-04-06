@@ -28,7 +28,7 @@ for (const file of fs.readdirSync(cmdPath).filter(f => f.endsWith('.js'))) {
   if (cmd.name)  client.prefixCommands.set(cmd.name, cmd);
   if (cmd.aliases) cmd.aliases.forEach(a => client.prefixCommands.set(a, cmd));
 }
-console.log(`[Lumora] Loaded ${client.slashCommands.size} slash / ${client.prefixCommands.size} prefix commands`);
+console.log(`[Nova] Loaded ${client.slashCommands.size} slash / ${client.prefixCommands.size} prefix commands`);
 
 // Load events
 const evtPath = path.join(__dirname, 'events');
@@ -86,8 +86,15 @@ cron.schedule('* * * * *', async () => {
   }
 });
 
-client.login(process.env.DISCORD_TOKEN)
-  .then(() => console.log(`[Lumora] ✅ Logged in as ${client.user.tag}`))
-  .catch(e => { console.error('[Lumora] Login failed:', e.message); process.exit(1); });
+// Init DB then login
+const { initDB } = require('./database');
+initDB().then(() => {
+  return client.login(process.env.DISCORD_TOKEN);
+}).then(() => {
+  console.log('[Nova] ✅ Bot logged in as ' + (client.user ? client.user.tag : 'Unknown'));
+}).catch(e => {
+  console.error('[Nova] Startup failed:', e.message);
+  process.exit(1);
+});
 
 module.exports = client;

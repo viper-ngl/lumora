@@ -4,7 +4,6 @@ require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
 const express       = require('express');
 const session       = require('express-session');
-const SQLiteStore   = require('connect-sqlite3')(session);
 const passport      = require('passport');
 const DiscordStrat  = require('passport-discord').Strategy;
 const LocalStrat    = require('passport-local').Strategy;
@@ -17,10 +16,6 @@ const db            = require('../bot/database');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// Ensure data dir exists for session store
-const dataDir = path.join(__dirname, '../data');
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-
 const OWNER_ID  = (process.env.OWNER_ID || '').trim();
 const ADMIN_IDS = (process.env.LUMORA_ADMIN_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
 if (OWNER_ID && !ADMIN_IDS.includes(OWNER_ID)) ADMIN_IDS.unshift(OWNER_ID);
@@ -29,8 +24,17 @@ const isOwner = (did) => did && did === OWNER_ID;
 const isAdmin = (did) => did && ADMIN_IDS.includes(did);
 
 // ─── Session (SQLite-backed — persists across restarts) ───────────────────────
+// Custom SQLite session store (uses our sql.js db)
+const SessionStore = require('express-session').Store;
+class NovaSessionStore extends SessionStore {
+  constructor() { super(); }
+  get(sid, cb) { try { const s=db.sessionStore.get(sid); cb(null, s||null); } catch(e){ cb(e); } }
+  set(sid, sess, cb) { try { const ma=sess.cookie?.maxAge; db.sessionStore.set(sid,sess,ma); cb(null); } catch(e){ cb(e); } }
+  destroy(sid, cb) { try { db.sessionStore.destroy(sid); cb(null); } catch(e){ cb(e); } }
+}
+
 app.use(session({
-  store: new SQLiteStore({ db: 'sessions.db', dir: dataDir, table: 'sessions' }),
+  store: new NovaSessionStore(),
   secret: process.env.SESSION_SECRET || 'nova-change-me',
   resave: false,
   saveUninitialized: false,
@@ -432,5 +436,8 @@ app.get('/api/policy/:type', (_req, res) => {
   res.json(p || { type: _req.params.type, content: '' });
 });
 
-app.listen(PORT, () => console.log(`[Nova] ✅ Dashboard running at http://localhost:${PORT}`));
+// Initialize DB then start server
+db.initDB().then(() => {
+  app.listen(PORT, () => console.log(`[Nova] ✅ Dashboard running at http://localhost:${PORT}`));
+}).catch(err => { console.error('[Nova] DB init failed:', err); process.exit(1); });
 module.exports = app;
